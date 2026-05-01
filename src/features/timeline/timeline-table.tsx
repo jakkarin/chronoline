@@ -32,9 +32,10 @@ interface ProjectRowProps {
   cols: ReturnType<typeof generateColumns>;
   holidays: string[];
   freeze: boolean;
+  ownerSuggestions: string[];
 }
 
-function SortableProjectRow({ project, cols, holidays, freeze }: ProjectRowProps) {
+function SortableProjectRow({ project, cols, holidays, freeze, ownerSuggestions }: ProjectRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: project.id });
 
@@ -189,6 +190,7 @@ function SortableProjectRow({ project, cols, holidays, freeze }: ProjectRowProps
                 cols={cols}
                 holidays={holidays}
                 freeze={freeze}
+                ownerSuggestions={ownerSuggestions}
               />
             ))}
           </SortableContext>
@@ -220,9 +222,10 @@ interface TaskRowProps {
   cols: ReturnType<typeof generateColumns>;
   holidays: string[];
   freeze: boolean;
+  ownerSuggestions: string[];
 }
 
-function SortableTaskRow({ task, projectId, cols, holidays, freeze }: TaskRowProps) {
+function SortableTaskRow({ task, projectId, cols, holidays, freeze, ownerSuggestions }: TaskRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id });
 
@@ -325,7 +328,13 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze }: TaskRowPro
           onChange={(e) => updateTask(projectId, task.id, { owner: e.target.value })}
           placeholder="—"
           aria-label="Owner"
+          list={`owner-suggestions-${task.id}`}
         />
+        <datalist id={`owner-suggestions-${task.id}`}>
+          {ownerSuggestions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
       </td>
       <td className="border-b border-r border-border p-0">
         <DatePicker
@@ -454,6 +463,20 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
     [timeline?.startDate, timeline?.weeks]
   );
 
+  const ownerSuggestions = useMemo(
+    () =>
+      timeline
+        ? [
+            ...new Set(
+              timeline.projects
+                .flatMap((p) => p.tasks.map((t) => t.owner))
+                .filter((o): o is string => typeof o === 'string' && o.trim() !== '')
+            ),
+          ]
+        : [],
+    [timeline]
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -555,6 +578,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
                 cols={cols}
                 holidays={timeline.holidays}
                 freeze={freeze}
+                ownerSuggestions={ownerSuggestions}
               />
             ))}
           </SortableContext>
