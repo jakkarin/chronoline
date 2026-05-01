@@ -1,14 +1,6 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
-import type { Priority } from '@/lib/types';
-
-export const PRIORITY_BAR_COLOR: Record<string, string> = {
-  HIGHEST: '#dc2626',
-  HIGH:    '#ea580c',
-  MED:     '#ca8a04',
-  LOW:     '#0891b2',
-  LOWEST:  '#78716c',
-  NONE:    '#78716c',
-};
+import { resolveTaskBarColor } from '@/lib/task-colors';
+import type { Priority, TaskColor } from '@/lib/types';
 
 const CELL_WIDTH = 32;
 
@@ -17,6 +9,7 @@ interface GanttBarProps {
   endCol: number;
   totalCols: number;
   priority: Priority;
+  taskColor?: TaskColor | null;
   label: string;
   percent?: number;
   isProject?: boolean;
@@ -28,6 +21,7 @@ export function GanttBar({
   endCol,
   totalCols,
   priority,
+  taskColor,
   label,
   percent = 0,
   isProject = false,
@@ -48,7 +42,7 @@ export function GanttBar({
   const span = endCol - startCol + 1;
   const barColor = isProject
     ? 'transparent'
-    : (PRIORITY_BAR_COLOR[priority ?? 'NONE'] ?? '#78716c');
+    : resolveTaskBarColor(taskColor, priority);
 
   // Dismiss when clicking outside
   useEffect(() => {

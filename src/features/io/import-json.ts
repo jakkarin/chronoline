@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { HEX_TASK_COLOR_PATTERN, TASK_COLOR_VALUES } from '@/lib/task-colors';
 import type { Timeline } from '@/lib/types';
 
 const TaskSchema = z.object({
@@ -6,6 +7,7 @@ const TaskSchema = z.object({
   name: z.string(),
   status: z.enum(['Not Started', 'In Progress', 'Done', 'Blocked', 'On Hold']),
   priority: z.enum(['HIGHEST', 'HIGH', 'MED', 'LOW', 'LOWEST']).nullable(),
+  color: z.union([z.enum(TASK_COLOR_VALUES), z.string().regex(HEX_TASK_COLOR_PATTERN)]).nullable().optional(),
   owner: z.string(),
   startDate: z.string(),
   endDate: z.string(),

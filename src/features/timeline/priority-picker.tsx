@@ -30,7 +30,7 @@ export function PriorityPicker({ value, onChange }: Props) {
   return (
     <Popover>
       <PopoverTrigger
-        className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white cursor-pointer hover:opacity-80 transition-opacity min-w-[44px] justify-center"
+        className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white cursor-pointer hover:opacity-80 transition-opacity min-w-11 justify-center"
         style={{ background: opt.color }}
         aria-label={`Priority: ${opt.label}`}
       >

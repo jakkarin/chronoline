@@ -15,7 +15,7 @@ interface TimelineStore {
   addProject: () => void;
   updateProject: (id: string, patch: Partial<Project>) => void;
   deleteProject: (id: string) => void;
-  addTask: (projectId: string) => void;
+  addTask: (projectId: string, afterTaskId?: string) => string | undefined;
   updateTask: (projectId: string, taskId: string, patch: Partial<Task>) => void;
   deleteTask: (projectId: string, taskId: string) => void;
   moveProject: (fromIdx: number, toIdx: number) => void;
@@ -71,18 +71,28 @@ export const useTimelineStore = create<TimelineStore>()(
           })
         ),
 
-      addTask: (projectId) =>
+      addTask: (projectId, afterTaskId) => {
+        let newTaskId: string | undefined;
+
         set(
           produce((state: TimelineStore) => {
             const p = state.timeline?.projects.find((x) => x.id === projectId);
             if (!p) return;
-            const lastTask = p.tasks[p.tasks.length - 1];
-            const startDate = lastTask?.endDate ?? state.timeline?.startDate ?? '';
-            p.tasks.push({
-              id: newId('t'),
+
+            const anchorIndex = afterTaskId
+              ? p.tasks.findIndex((task) => task.id === afterTaskId)
+              : p.tasks.length - 1;
+            const anchorTask = anchorIndex >= 0 ? p.tasks[anchorIndex] : undefined;
+            const startDate = anchorTask?.endDate ?? state.timeline?.startDate ?? '';
+
+            newTaskId = newId('t');
+
+            p.tasks.splice(anchorIndex + 1, 0, {
+              id: newTaskId,
               name: 'New Task',
               status: 'Not Started',
               priority: 'MED',
+              color: null,
               owner: '',
               startDate,
               endDate: startDate,
@@ -91,7 +101,10 @@ export const useTimelineStore = create<TimelineStore>()(
             });
             p.expanded = true;
           })
-        ),
+        );
+
+        return newTaskId;
+      },
 
       updateTask: (projectId, taskId, patch) =>
         set(

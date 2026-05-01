@@ -18,6 +18,7 @@ import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, co
 import { useTimelineStore } from '@/store/timeline-store';
 import { StatusPicker } from './status-picker';
 import { PriorityPicker } from './priority-picker';
+import { TaskColorPicker } from './task-color-picker';
 import { GanttBar } from './gantt-bar';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,7 +70,7 @@ function SortableProjectRow({ project, cols, holidays, freeze }: ProjectRowProps
   const pEndCol = pRange ? (colIndexFromDate(pRange.end, cols) ?? cols.length - 1) : -1;
   const pDays = pRange ? workingDaysBetween(pRange.start, pRange.end, holidays) : 0;
 
-  const totalCols = 10 + cols.length;
+  const totalCols = 11 + cols.length;
 
   return (
     <>
@@ -78,7 +79,7 @@ function SortableProjectRow({ project, cols, holidays, freeze }: ProjectRowProps
         style={style}
         className="group/project bg-muted/30 font-semibold text-[12px]"
       >
-        <td className={`${freeze ? 'sticky left-0 z-[2]' : ''} bg-[inherit] border-b border-r border-border`}>
+        <td className={`${freeze ? 'sticky left-0 z-2' : ''} bg-inherit border-b border-r border-border`}>
           <div className="flex items-center px-1 py-1 gap-0.5">
             <button
               {...attributes}
@@ -94,8 +95,9 @@ function SortableProjectRow({ project, cols, holidays, freeze }: ProjectRowProps
             />
           </div>
         </td>
-        <td className={`${freeze ? 'sticky left-[110px] z-[2]' : ''} bg-[inherit] border-b border-r border-border`} />
-        <td className={`${freeze ? 'sticky left-[196px] z-[2]' : ''} bg-[inherit] border-b border-r-2 border-border min-w-[260px]`}>
+        <td className={`${freeze ? 'sticky left-27.5 z-2' : ''} bg-inherit border-b border-r border-border`} />
+        <td className={`${freeze ? 'sticky left-49 z-2' : ''} bg-inherit border-b border-r border-border`} />
+        <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-inherit border-b border-r-2 border-border min-w-65`}>
           <div className="flex items-center px-2 py-1 gap-1">
             <button
               onClick={() => updateProject(project.id, { expanded: !project.expanded })}
@@ -231,6 +233,7 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze }: TaskRowPro
   };
 
   const updateTask = useTimelineStore((s) => s.updateTask);
+  const addTask = useTimelineStore((s) => s.addTask);
   const deleteTask = useTimelineStore((s) => s.deleteTask);
 
   const startCol = colIndexFromDate(task.startDate, cols) ?? 0;
@@ -246,11 +249,29 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze }: TaskRowPro
     });
   }
 
+  function handleTaskNameKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+
+    event.preventDefault();
+
+    const newTaskId = addTask(projectId, task.id);
+    if (!newTaskId) return;
+
+    requestAnimationFrame(() => {
+      const nextTaskInput = document.querySelector<HTMLInputElement>(
+        `input[data-task-name-input="true"][data-task-id="${newTaskId}"]`
+      );
+
+      nextTaskInput?.focus();
+      nextTaskInput?.select();
+    });
+  }
+
   const pct = Math.max(0, Math.min(100, task.percentComplete));
 
   return (
     <tr ref={setNodeRef} style={style} className="group/task text-[12px]">
-      <td className={`${freeze ? 'sticky left-0 z-[2]' : ''} bg-background border-b border-r border-border`}>
+      <td className={`${freeze ? 'sticky left-0 z-2' : ''} bg-background border-b border-r border-border`}>
         <div className="flex items-center px-1 py-1 gap-0.5">
           <button
             {...attributes}
@@ -266,7 +287,7 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze }: TaskRowPro
           />
         </div>
       </td>
-      <td className={`${freeze ? 'sticky left-[110px] z-[2]' : ''} bg-background border-b border-r border-border`}>
+      <td className={`${freeze ? 'sticky left-27.5 z-2' : ''} bg-background border-b border-r border-border`}>
         <div className="px-1 py-1">
           <PriorityPicker
             value={task.priority}
@@ -274,14 +295,26 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze }: TaskRowPro
           />
         </div>
       </td>
-      <td className={`${freeze ? 'sticky left-[196px] z-[2]' : ''} bg-background border-b border-r-2 border-border`}>
+      <td className={`${freeze ? 'sticky left-49 z-2' : ''} bg-background border-b border-r border-border`}>
+        <div className="flex items-center justify-center px-2 py-1">
+          <TaskColorPicker
+            value={task.color}
+            priority={task.priority}
+            onChange={(value) => updateTask(projectId, task.id, { color: value })}
+          />
+        </div>
+      </td>
+      <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-background border-b border-r-2 border-border`}>
         <div className="flex items-center pl-8 pr-2 relative">
           <span className="absolute left-5 top-1/2 -translate-y-1/2 w-2 h-px bg-border" />
           <input
             className="w-full bg-transparent outline-none text-[12px] py-1 min-w-0 hover:bg-muted/30 focus:bg-background focus:ring-1 focus:ring-inset focus:ring-foreground/30 rounded px-1"
             value={task.name}
             onChange={(e) => updateTask(projectId, task.id, { name: e.target.value })}
+            onKeyDown={handleTaskNameKeyDown}
             aria-label="Task name"
+            data-task-name-input="true"
+            data-task-id={task.id}
           />
         </div>
       </td>
@@ -391,6 +424,7 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze }: TaskRowPro
                 endCol={endCol - startCol}
                 totalCols={cols.length - startCol}
                 priority={task.priority}
+                taskColor={task.color}
                 label={task.name}
                 percent={pct}
                 onUpdate={handleBarUpdate}
@@ -436,7 +470,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const totalCols = 10 + cols.length;
+  const totalCols = 11 + cols.length;
 
   const weekGroups: { weekIndex: number; span: number }[] = [];
   let wi = 0;
@@ -456,22 +490,25 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
       >
         <thead className="sticky top-0 z-10">
           <tr>
-            <th className={`${freeze ? 'sticky left-0 z-[5]' : ''} bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-[110px] min-w-[110px]`} rowSpan={2}>
+            <th className={`${freeze ? 'sticky left-0 z-5' : ''} bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-27.5 min-w-27.5`} rowSpan={2}>
               Status
             </th>
-            <th className={`${freeze ? 'sticky left-[110px] z-[5]' : ''} bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-[86px] min-w-[86px]`} rowSpan={2}>
+            <th className={`${freeze ? 'sticky left-27.5 z-5' : ''} bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-21.5 min-w-21.5`} rowSpan={2}>
               Priority
             </th>
-            <th className={`${freeze ? 'sticky left-[196px] z-[5]' : ''} bg-muted border-b-2 border-r-2 border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-[260px] min-w-[260px]`} rowSpan={2}>
+            <th className={`${freeze ? 'sticky left-49 z-5' : ''} bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-center w-17 min-w-17`} rowSpan={2}>
+              Color
+            </th>
+            <th className={`${freeze ? 'sticky left-66 z-5' : ''} bg-muted border-b-2 border-r-2 border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-65 min-w-65`} rowSpan={2}>
               Project + Task
             </th>
-            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-[110px]" rowSpan={2}>Owner</th>
-            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-[100px]" rowSpan={2}>Start</th>
-            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-[100px]" rowSpan={2}>End</th>
-            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-center w-[56px]" rowSpan={2}>Days</th>
-            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-[140px]" rowSpan={2}>Deliverable</th>
-            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-center w-[120px]" rowSpan={2}>%</th>
-            <th className="bg-muted border-b-2 border-r-2 border-border w-[50px]" rowSpan={2} data-pdf-hide />
+            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-27.5" rowSpan={2}>Owner</th>
+            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-25" rowSpan={2}>Start</th>
+            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-25" rowSpan={2}>End</th>
+            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-center w-14" rowSpan={2}>Days</th>
+            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-35" rowSpan={2}>Deliverable</th>
+            <th className="bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-center w-30" rowSpan={2}>%</th>
+            <th className="bg-muted border-b-2 border-r-2 border-border w-12.5" rowSpan={2} data-pdf-hide />
             {weekGroups.map((w) => (
               <th
                 key={w.weekIndex}
@@ -494,7 +531,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
                   key={c.dateStr}
                   className={[
                     'bg-muted border-b-2 border-r border-border text-center font-mono text-[10px] py-1',
-                    'w-[32px] min-w-[32px]',
+                    'w-8 min-w-8',
                     isTod ? 'text-red-500 font-semibold bg-red-50 dark:bg-red-950/20' : 'text-muted-foreground',
                     isWkStart ? 'border-l-2' : '',
                   ].join(' ')}

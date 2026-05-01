@@ -2,11 +2,16 @@ export type Status = 'Not Started' | 'In Progress' | 'Done' | 'Blocked' | 'On Ho
 
 export type Priority = 'HIGHEST' | 'HIGH' | 'MED' | 'LOW' | 'LOWEST' | null;
 
+export type PresetTaskColor = 'ROSE' | 'AMBER' | 'EMERALD' | 'SKY' | 'VIOLET' | 'SLATE';
+
+export type TaskColor = PresetTaskColor | `#${string}`;
+
 export interface Task {
   id: string;
   name: string;
   status: Status;
   priority: Priority;
+  color?: TaskColor | null;
   owner: string;
   startDate: string;
   endDate: string;

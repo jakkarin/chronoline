@@ -1,5 +1,6 @@
 import type { Timeline } from '@/lib/types';
 import { generateColumns, workingDaysBetween, DAY_LABELS } from '@/lib/date-utils';
+import { PRIORITY_BAR_COLOR, resolveTaskBarColor } from '@/lib/task-colors';
 import { format, parseISO } from 'date-fns';
 
 const CELL_W = 32; // px per day column
@@ -10,15 +11,6 @@ const STATUS_COLOR: Record<string, string> = {
   'Done':        '#059669',
   'Blocked':     '#dc2626',
   'On Hold':     '#ca8a04',
-};
-
-const PRIORITY_BAR_COLOR: Record<string, string> = {
-  HIGHEST: '#dc2626',
-  HIGH:    '#ea580c',
-  MED:     '#ca8a04',
-  LOW:     '#0891b2',
-  LOWEST:  '#78716c',
-  NONE:    '#78716c',
 };
 
 const TH = (style: string, content: string, extra = '') =>
@@ -107,7 +99,7 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
 
     for (const task of project.tasks) {
       const days = workingDaysBetween(task.startDate, task.endDate, timeline.holidays);
-      const taskBarColor = PRIORITY_BAR_COLOR[task.priority ?? 'NONE'] ?? '#78716c';
+      const taskBarColor = resolveTaskBarColor(task.color, task.priority);
       const statusColor  = STATUS_COLOR[task.status] ?? '#78716c';
 
       rowsHtml += `<tr>
