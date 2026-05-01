@@ -4,6 +4,10 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
+  "runArgs": [
+    "--name",
+    "chronoline-devcontainer"
+  ],
   "remoteUser": "node",
   "forwardPorts": [5173],
   "portsAttributes": {
