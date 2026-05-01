@@ -77,7 +77,7 @@ export default function TimelineEditor() {
         <span>·</span>
         <span>Drag bar to move / resize</span>
         <span>·</span>
-        <span>Drag <kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⠿</kbd> handle to reorder rows</span>
+        <span>Use Reorder in the toolbar to arrange groups and tasks</span>
         <span>·</span>
         <span><kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⌘Z</kbd> Undo</span>
         <span>·</span>

@@ -32,11 +32,6 @@ const dndAccessibility = typeof document === 'undefined'
   ? undefined
   : { container: document.body };
 
-const dragHandleStyle: React.CSSProperties = {
-  touchAction: 'none',
-  userSelect: 'none',
-};
-
 type SortableItemType = 'project' | 'task';
 
 const disableRowLayoutAnimation: AnimateLayoutChanges = () => false;
@@ -199,7 +194,7 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
 });
 
 const SortableProjectRow = React.memo(function SortableProjectRow({ project, cols, holidays, freeze, ownerSuggestions }: ProjectRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+  const { setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: project.id,
       data: { type: 'project' satisfies SortableItemType, projectId: project.id },
@@ -248,16 +243,7 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
     >
       <tr className="bg-muted/30 font-semibold text-[12px]">
         <td className={`${freeze ? 'sticky left-0 z-2' : ''} bg-inherit border-b border-r border-border`}>
-          <div className="flex items-center px-1 py-1 gap-0.5">
-            <button
-              {...attributes}
-              {...listeners}
-              className="cursor-grab text-muted-foreground p-0.5"
-              style={dragHandleStyle}
-              aria-label="Drag to reorder"
-            >
-              <GripVertical className="h-3 w-3" />
-            </button>
+          <div className="flex items-center px-3 py-1">
             <StatusPicker
               value={project.status}
               onChange={(v) => updateProject(project.id, { status: v })}
@@ -369,7 +355,7 @@ interface TaskRowProps {
 }
 
 const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, cols, holidays, freeze, ownerSuggestions }: TaskRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+  const { setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: task.id,
       data: { type: 'task' satisfies SortableItemType, projectId, taskId: task.id },
@@ -423,16 +409,7 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
   return (
     <tr ref={setNodeRef} style={style} className="group/task text-[12px]">
       <td className={`${freeze ? 'sticky left-0 z-2' : ''} bg-background border-b border-r border-border`}>
-        <div className="flex items-center px-1 py-1 gap-0.5">
-          <button
-            {...attributes}
-            {...listeners}
-            className="cursor-grab text-muted-foreground p-0.5"
-            style={dragHandleStyle}
-            aria-label="Drag to reorder"
-          >
-            <GripVertical className="h-3 w-3" />
-          </button>
+        <div className="flex items-center px-3 py-1">
           <StatusPicker
             value={task.status}
             onChange={(v) => updateTask(projectId, task.id, { status: v })}
@@ -440,7 +417,7 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
         </div>
       </td>
       <td className={`${freeze ? 'sticky left-27.5 z-2' : ''} bg-background border-b border-r border-border`}>
-        <div className="px-1 py-1">
+        <div className="px-3 py-1">
           <PriorityPicker
             value={task.priority}
             onChange={(v) => updateTask(projectId, task.id, { priority: v })}

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   Plus, Undo2, Redo2, CalendarDays, Download, Upload, Presentation,
-  ArrowDown, PanelLeftClose, PanelLeft, BookmarkPlus, History,
+  ArrowDown, ArrowUpDown, PanelLeftClose, PanelLeft, BookmarkPlus, History,
 } from 'lucide-react';
 import { useStore } from 'zustand';
 import { useTimelineStore } from '@/store/timeline-store';
@@ -14,6 +14,7 @@ import { exportJSON } from '@/features/io/export-json';
 import { parseImportJSON } from '@/features/io/import-json';
 import { generatePresentHTML } from '@/features/io/export-pdf';
 import { PresentOverlay } from './present-overlay';
+import { ReorderDialog } from './reorder-dialog';
 import { timelineRepo } from '@/lib/db/timelines';
 import { toast } from 'sonner';
 
@@ -27,6 +28,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   const timeline = useTimelineStore((s) => s.timeline);
   const setTimeline = useTimelineStore((s) => s.setTimeline);
   const [holidaysOpen, setHolidaysOpen] = useState(false);
+  const [reorderOpen, setReorderOpen] = useState(false);
   const [saveVersionOpen, setSaveVersionOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [presentHtml, setPresentHtml] = useState<string | null>(null);
@@ -86,6 +88,16 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
       <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border bg-background shrink-0 flex-wrap" data-pdf-hide>
         <Button size="sm" onClick={addProject} className="h-7 text-xs gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Group
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1.5"
+          onClick={() => setReorderOpen(true)}
+          disabled={!timeline}
+          title="Reorder groups and tasks in a list view"
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" /> Reorder
         </Button>
 
         <Separator orientation="vertical" className="h-5" />
@@ -183,6 +195,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
       </div>
 
       <HolidaysSheet open={holidaysOpen} onOpenChange={setHolidaysOpen} />
+      {reorderOpen && <ReorderDialog open={reorderOpen} onOpenChange={setReorderOpen} />}
       <SaveVersionDialog open={saveVersionOpen} onOpenChange={setSaveVersionOpen} />
       <VersionHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
       {presentHtml && <PresentOverlay html={presentHtml} title={timeline?.title ?? ''} onClose={() => setPresentHtml(null)} />}
