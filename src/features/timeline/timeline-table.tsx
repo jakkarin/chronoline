@@ -1,17 +1,19 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { CollisionDetection, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import type { AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, GripVertical, Trash2, Plus, AlertTriangle } from 'lucide-react';
 import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, colIndexFromDate } from '@/lib/date-utils';
@@ -34,6 +36,10 @@ const dragHandleStyle: React.CSSProperties = {
   touchAction: 'none',
   userSelect: 'none',
 };
+
+type SortableItemType = 'project' | 'task';
+
+const disableRowLayoutAnimation: AnimateLayoutChanges = () => false;
 
 // ─── Project Row ────────────────────────────────────────────────────────────
 
@@ -108,6 +114,41 @@ interface TaskTimelineCellsProps {
   onUpdate: (newStart: number, newEnd: number) => void;
 }
 
+type ActiveDragItem =
+  | {
+      type: 'project';
+      label: string;
+      meta: string;
+    }
+  | {
+      type: 'task';
+      label: string;
+      meta: string;
+      submeta: string;
+    };
+
+function DragPreview({ item }: { item: ActiveDragItem }) {
+  return (
+    <div
+      data-drag-preview
+      className="pointer-events-none min-w-72 rounded-xl border border-border bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-sm"
+    >
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        <span className="truncate">{item.label}</span>
+      </div>
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        {item.meta}
+      </div>
+      {item.type === 'task' && (
+        <div className="text-[10px] text-muted-foreground/80">
+          {item.submeta}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TaskTimelineCells = React.memo(function TaskTimelineCells({
   cols,
   holidays,
@@ -159,20 +200,22 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
 
 const SortableProjectRow = React.memo(function SortableProjectRow({ project, cols, holidays, freeze, ownerSuggestions }: ProjectRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: project.id });
+    useSortable({
+      id: project.id,
+      data: { type: 'project' satisfies SortableItemType, projectId: project.id },
+      animateLayoutChanges: disableRowLayoutAnimation,
+      transition: null,
+    });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
   const updateProject = useTimelineStore((s) => s.updateProject);
   const deleteProject = useTimelineStore((s) => s.deleteProject);
   const addTask = useTimelineStore((s) => s.addTask);
-  const moveTask = useTimelineStore((s) => s.moveTask);
-
-  const taskSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // Stable task id list — ref only changes when the ORDER/count of tasks
   // changes (not when task fields are edited). This keeps dnd-kit's
@@ -183,14 +226,6 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
     () => (taskIdsKey ? taskIdsKey.split('\u0001') : []),
     [taskIdsKey],
   );
-
-  const handleTaskDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const fromIdx = project.tasks.findIndex((t) => t.id === active.id);
-    const toIdx = project.tasks.findIndex((t) => t.id === over.id);
-    if (fromIdx !== -1 && toIdx !== -1) moveTask(project.id, fromIdx, toIdx);
-  }, [moveTask, project.id, project.tasks]);
 
   const pRange = useMemo(() => {
     const dates = project.tasks.flatMap((t) => [t.startDate, t.endDate]).filter(Boolean);
@@ -290,26 +325,19 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
       </tr>
 
       {project.expanded && (
-        <DndContext
-          sensors={taskSensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleTaskDragEnd}
-          accessibility={dndAccessibility}
-        >
-          <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-            {project.tasks.map((task) => (
-              <SortableTaskRow
-                key={task.id}
-                task={task}
-                projectId={project.id}
-                cols={cols}
-                holidays={holidays}
-                freeze={freeze}
-                ownerSuggestions={ownerSuggestions}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
+        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+          {project.tasks.map((task) => (
+            <SortableTaskRow
+              key={task.id}
+              task={task}
+              projectId={project.id}
+              cols={cols}
+              holidays={holidays}
+              freeze={freeze}
+              ownerSuggestions={ownerSuggestions}
+            />
+          ))}
+        </SortableContext>
       )}
 
       {project.expanded && (
@@ -342,12 +370,17 @@ interface TaskRowProps {
 
 const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, cols, holidays, freeze, ownerSuggestions }: TaskRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: task.id });
+    useSortable({
+      id: task.id,
+      data: { type: 'task' satisfies SortableItemType, projectId, taskId: task.id },
+      animateLayoutChanges: disableRowLayoutAnimation,
+      transition: null,
+    });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0 : 1,
   };
 
   const updateTask = useTimelineStore((s) => s.updateTask);
@@ -548,7 +581,9 @@ interface TimelineTableProps { freeze: boolean; }
 export function TimelineTable({ freeze }: TimelineTableProps) {
   const timeline = useTimelineStore((s) => s.timeline);
   const moveProject = useTimelineStore((s) => s.moveProject);
+  const moveTask = useTimelineStore((s) => s.moveTask);
   const tableRef = useRef<HTMLDivElement>(null);
+  const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
 
   const cols = useMemo(
     () =>
@@ -591,13 +626,126 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const handleProjectDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    if (!projects) return;
+
+    const activeId = String(event.active.id);
+    const activeType = event.active.data.current?.type as SortableItemType | undefined;
+
+    if (activeType === 'project') {
+      const project = projects.find((entry) => entry.id === activeId);
+      if (!project) return;
+      setActiveDragItem({
+        type: 'project',
+        label: project.name,
+        meta: `${project.tasks.length} task${project.tasks.length === 1 ? '' : 's'}`,
+      });
+      return;
+    }
+
+    if (activeType !== 'task') return;
+
+    const projectId = String(event.active.data.current?.projectId ?? '');
+    const project = projects.find((entry) => entry.id === projectId);
+    const task = project?.tasks.find((entry) => entry.id === activeId);
+    if (!project || !task) return;
+
+    setActiveDragItem({
+      type: 'task',
+      label: task.name,
+      meta: project.name,
+      submeta: `${task.startDate} -> ${task.endDate}`,
+    });
+  }, [projects]);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveDragItem(null);
+  }, []);
+
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const activeType = args.active.data.current?.type as SortableItemType | undefined;
+
+    if (activeType !== 'task') {
+      return closestCenter(args);
+    }
+
+    const taskContainers = args.droppableContainers.filter(
+      (container) => container.data.current?.type === 'task'
+    );
+    const taskCollisions = closestCenter({
+      ...args,
+      droppableContainers: taskContainers,
+    });
+
+    if (taskCollisions.length > 0) {
+      return taskCollisions;
+    }
+
+    const projectContainers = args.droppableContainers.filter(
+      (container) => container.data.current?.type === 'project'
+    );
+
+    return closestCenter({
+      ...args,
+      droppableContainers: projectContainers,
+    });
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveDragItem(null);
+
     const { active, over } = event;
-    if (!over || active.id === over.id || !projects) return;
-    const fromIdx = projects.findIndex((p) => p.id === active.id);
-    const toIdx = projects.findIndex((p) => p.id === over.id);
-    if (fromIdx !== -1 && toIdx !== -1) moveProject(fromIdx, toIdx);
-  }, [moveProject, projects]);
+    if (!over || !projects) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const activeType = active.data.current?.type as SortableItemType | undefined;
+    const overType = over.data.current?.type as SortableItemType | undefined;
+
+    if (activeType === 'project') {
+      const targetProjectId = overType === 'task'
+        ? String(over.data.current?.projectId ?? '')
+        : overId;
+
+      if (!targetProjectId || activeId === targetProjectId) return;
+
+      const fromIdx = projects.findIndex((project) => project.id === activeId);
+      const toIdx = projects.findIndex((project) => project.id === targetProjectId);
+      if (fromIdx !== -1 && toIdx !== -1) moveProject(fromIdx, toIdx);
+      return;
+    }
+
+    if (activeType !== 'task') return;
+
+    const fromProjectId = String(active.data.current?.projectId ?? '');
+    if (!fromProjectId) return;
+
+    const fromProject = projects.find((project) => project.id === fromProjectId);
+    if (!fromProject) return;
+
+    const fromIdx = fromProject.tasks.findIndex((task) => task.id === activeId);
+    if (fromIdx === -1) return;
+
+    let toProjectId = '';
+    let toIdx = -1;
+
+    if (overType === 'task') {
+      toProjectId = String(over.data.current?.projectId ?? '');
+      const toProject = projects.find((project) => project.id === toProjectId);
+      if (!toProject) return;
+      toIdx = toProject.tasks.findIndex((task) => task.id === overId);
+    } else if (overType === 'project') {
+      toProjectId = overId;
+      const toProject = projects.find((project) => project.id === toProjectId);
+      if (!toProject) return;
+      toIdx = toProject.tasks.length;
+    }
+
+    if (!toProjectId || toIdx === -1) return;
+    if (fromProjectId === toProjectId && (activeId === overId || fromIdx === toIdx)) return;
+
+    moveTask(fromProjectId, fromIdx, toProjectId, toIdx);
+  }, [moveProject, moveTask, projects]);
 
   if (!timeline) return null;
 
@@ -616,12 +764,20 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
   }
 
   return (
-    <div ref={tableRef} className="table-scroll flex-1 overflow-auto relative" data-table-wrap>
-      <table
-        className="border-collapse text-[12px]"
-        style={{ width: 'max-content', minWidth: '100%' }}
-      >
-        <thead className="sticky top-0 z-10">
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetection}
+      onDragStart={handleDragStart}
+      onDragCancel={handleDragCancel}
+      onDragEnd={handleDragEnd}
+      accessibility={dndAccessibility}
+    >
+      <div ref={tableRef} className="table-scroll flex-1 overflow-auto relative" data-table-wrap>
+        <table
+          className="border-collapse text-[12px]"
+          style={{ width: 'max-content', minWidth: '100%' }}
+        >
+          <thead className="sticky top-0 z-10">
           <tr>
             <th className={`${freeze ? 'sticky left-0 z-5' : ''} bg-muted border-b-2 border-r border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 text-left w-27.5 min-w-27.5`} rowSpan={2}>
               Status
@@ -677,14 +833,8 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
               );
             })}
           </tr>
-        </thead>
+          </thead>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleProjectDragEnd}
-          accessibility={dndAccessibility}
-        >
           <SortableContext items={projectIds} strategy={verticalListSortingStrategy}>
             {timeline.projects.map((project) => (
               <SortableProjectRow
@@ -697,18 +847,20 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
               />
             ))}
           </SortableContext>
-        </DndContext>
-
-        {timeline.projects.length === 0 && (
-          <tbody>
-            <tr>
-              <td colSpan={totalCols} className="text-center py-16 text-muted-foreground text-sm">
-                No projects yet — click &ldquo;+ Group&rdquo; in the toolbar to get started.
-              </td>
-            </tr>
-          </tbody>
-        )}
-      </table>
-    </div>
+          {timeline.projects.length === 0 && (
+            <tbody>
+              <tr>
+                <td colSpan={totalCols} className="text-center py-16 text-muted-foreground text-sm">
+                  No projects yet — click &ldquo;+ Group&rdquo; in the toolbar to get started.
+                </td>
+              </tr>
+            </tbody>
+          )}
+        </table>
+      </div>
+      <DragOverlay dropAnimation={null}>
+        {activeDragItem ? <DragPreview item={activeDragItem} /> : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

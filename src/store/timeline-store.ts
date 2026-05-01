@@ -21,7 +21,7 @@ interface TimelineStore {
   updateTask: (projectId: string, taskId: string, patch: Partial<Task>) => void;
   deleteTask: (projectId: string, taskId: string) => void;
   moveProject: (fromIdx: number, toIdx: number) => void;
-  moveTask: (projectId: string, fromIdx: number, toIdx: number) => void;
+  moveTask: (fromProjectId: string, fromIdx: number, toProjectId: string, toIdx: number) => void;
   toggleHoliday: (date: string) => void;
   saveVersion: (name: string, note?: string) => Promise<void>;
   restoreVersion: (versionId: string, backupCurrent?: boolean) => Promise<void>;
@@ -137,13 +137,21 @@ export const useTimelineStore = create<TimelineStore>()(
           })
         ),
 
-      moveTask: (projectId, fromIdx, toIdx) =>
+      moveTask: (fromProjectId, fromIdx, toProjectId, toIdx) =>
         set(
           produce((state: TimelineStore) => {
-            const p = state.timeline?.projects.find((x) => x.id === projectId);
-            if (!p) return;
-            const [item] = p.tasks.splice(fromIdx, 1);
-            p.tasks.splice(toIdx, 0, item);
+            const fromProject = state.timeline?.projects.find((x) => x.id === fromProjectId);
+            const toProject = state.timeline?.projects.find((x) => x.id === toProjectId);
+            if (!fromProject || !toProject) return;
+            if (fromIdx < 0 || fromIdx >= fromProject.tasks.length) return;
+
+            const [item] = fromProject.tasks.splice(fromIdx, 1);
+            if (!item) return;
+
+            const insertAt = Math.max(0, Math.min(toIdx, toProject.tasks.length));
+            toProject.tasks.splice(insertAt, 0, item);
+            fromProject.expanded = true;
+            toProject.expanded = true;
           })
         ),
 
