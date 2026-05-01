@@ -88,7 +88,7 @@ export function TimelineCard({ meta, onRefresh }: Props) {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hover:bg-accent"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md shrink-0 hover:bg-accent"
                 onClick={(e) => e.stopPropagation()}
                 aria-label="Timeline actions"
               >

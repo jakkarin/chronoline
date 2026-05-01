@@ -85,7 +85,7 @@ function SortableProjectRow({ project, cols, holidays, freeze, ownerSuggestions 
             <button
               {...attributes}
               {...listeners}
-              className="cursor-grab opacity-0 group-hover/project:opacity-100 transition-opacity text-muted-foreground p-0.5"
+              className="cursor-grab text-muted-foreground p-0.5"
               aria-label="Drag to reorder"
             >
               <GripVertical className="h-3 w-3" />
@@ -138,7 +138,7 @@ function SortableProjectRow({ project, cols, holidays, freeze, ownerSuggestions 
           />
         </td>
         <td className="border-b border-r border-border" />
-        <td className="border-b border-r-2 border-border text-center opacity-0 group-hover/project:opacity-100 transition-opacity">
+        <td className="border-b border-r-2 border-border text-center">
           <button
             onClick={() => deleteProject(project.id)}
             className="p-1 text-muted-foreground hover:text-destructive"
@@ -279,7 +279,7 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze, ownerSuggest
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab opacity-0 group-hover/task:opacity-100 transition-opacity text-muted-foreground p-0.5"
+            className="cursor-grab text-muted-foreground p-0.5"
             aria-label="Drag to reorder"
           >
             <GripVertical className="h-3 w-3" />
@@ -383,7 +383,7 @@ function SortableTaskRow({ task, projectId, cols, holidays, freeze, ownerSuggest
           />
         </div>
       </td>
-      <td className="border-b border-r-2 border-border text-center opacity-0 group-hover/task:opacity-100 transition-opacity">
+      <td className="border-b border-r-2 border-border text-center">
         <Popover>
           <PopoverTrigger
             className="p-1 text-muted-foreground hover:text-destructive rounded"
