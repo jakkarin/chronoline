@@ -1,4 +1,5 @@
 import { db } from './schema';
+import { versionsRepo } from './versions';
 import type { Timeline, TimelineMeta, TimelineData, Project } from '@/lib/types';
 import { newId } from '@/lib/id';
 
@@ -78,6 +79,7 @@ export const timelineRepo = {
     await Promise.all([
       db.timelineMeta.delete(id),
       db.timelineData.delete(id),
+      versionsRepo.removeAllForTimeline(id),
     ]);
   },
 

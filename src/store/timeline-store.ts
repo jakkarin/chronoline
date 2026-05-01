@@ -3,6 +3,8 @@ import { temporal } from 'zundo';
 import { produce } from 'immer';
 import type { Timeline, TimelineMeta, Project, Task } from '@/lib/types';
 import { newId } from '@/lib/id';
+import { versionsRepo } from '@/lib/db/versions';
+import { timelineRepo } from '@/lib/db/timelines';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -21,6 +23,8 @@ interface TimelineStore {
   moveProject: (fromIdx: number, toIdx: number) => void;
   moveTask: (projectId: string, fromIdx: number, toIdx: number) => void;
   toggleHoliday: (date: string) => void;
+  saveVersion: (name: string, note?: string) => Promise<void>;
+  restoreVersion: (versionId: string, backupCurrent?: boolean) => Promise<void>;
 }
 
 export const useTimelineStore = create<TimelineStore>()(
@@ -156,6 +160,23 @@ export const useTimelineStore = create<TimelineStore>()(
             }
           })
         ),
+
+      saveVersion: async (name, note) => {
+        const tl = useTimelineStore.getState().timeline;
+        if (!tl) return;
+        await versionsRepo.create(tl.id, name, note);
+      },
+
+      restoreVersion: async (versionId, backupCurrent = true) => {
+        const tl = useTimelineStore.getState().timeline;
+        if (!tl) return;
+        await versionsRepo.restore(versionId, { backupCurrent });
+        const refreshed = await timelineRepo.get(tl.id);
+        if (refreshed) {
+          set({ timeline: refreshed });
+          useTimelineStore.temporal.getState().clear();
+        }
+      },
     }),
     {
       limit: 50,

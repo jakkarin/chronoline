@@ -57,3 +57,22 @@ export interface TimelineExport {
   exportedAt: string;
   timeline: Timeline;
 }
+
+export interface TimelineVersionSnapshot {
+  projects: Project[];
+  holidays: string[];
+}
+
+export interface TimelineVersion {
+  id: string;
+  timelineId: string;
+  name: string;
+  note?: string;
+  createdAt: number;
+  schemaVersion: number;
+  snapshot: TimelineVersionSnapshot;
+  stats: {
+    projectCount: number;
+    taskCount: number;
+  };
+}

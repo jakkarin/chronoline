@@ -1,13 +1,15 @@
 import { useRef, useState } from 'react';
 import {
   Plus, Undo2, Redo2, CalendarDays, Download, Upload, Presentation,
-  ArrowDown, PanelLeftClose, PanelLeft,
+  ArrowDown, PanelLeftClose, PanelLeft, BookmarkPlus, History,
 } from 'lucide-react';
 import { useStore } from 'zustand';
 import { useTimelineStore } from '@/store/timeline-store';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { HolidaysSheet } from './holidays-sheet';
+import { SaveVersionDialog } from './save-version-dialog';
+import { VersionHistorySheet } from './version-history-sheet';
 import { exportJSON } from '@/features/io/export-json';
 import { parseImportJSON } from '@/features/io/import-json';
 import { generatePresentHTML } from '@/features/io/export-pdf';
@@ -25,6 +27,8 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   const timeline = useTimelineStore((s) => s.timeline);
   const setTimeline = useTimelineStore((s) => s.setTimeline);
   const [holidaysOpen, setHolidaysOpen] = useState(false);
+  const [saveVersionOpen, setSaveVersionOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [presentHtml, setPresentHtml] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,6 +134,29 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
 
         <Separator orientation="vertical" className="h-5" />
 
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1.5"
+          onClick={() => setSaveVersionOpen(true)}
+          disabled={!timeline}
+          title="Save a named version of this timeline"
+        >
+          <BookmarkPlus className="h-3.5 w-3.5" /> Save Version
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1.5"
+          onClick={() => setHistoryOpen(true)}
+          disabled={!timeline}
+          title="View version history"
+        >
+          <History className="h-3.5 w-3.5" /> History
+        </Button>
+
+        <Separator orientation="vertical" className="h-5" />
+
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5" onClick={handleSaveJSON}>
           <Download className="h-3.5 w-3.5" /> Save JSON
         </Button>
@@ -156,6 +183,8 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
       </div>
 
       <HolidaysSheet open={holidaysOpen} onOpenChange={setHolidaysOpen} />
+      <SaveVersionDialog open={saveVersionOpen} onOpenChange={setSaveVersionOpen} />
+      <VersionHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
       {presentHtml && <PresentOverlay html={presentHtml} title={timeline?.title ?? ''} onClose={() => setPresentHtml(null)} />}
     </>
   );
