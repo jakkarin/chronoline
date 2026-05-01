@@ -42,6 +42,14 @@ const PERCENT_LABEL_MIN_W = 18;
 const PERCENT_CONTENT_MIN_W = 70;
 const PERCENT_BAR_MIN_W = 49;
 const PERCENT_GAP_W = 3;
+const PRESENT_TASK_BAR_SLOT_H = 26;
+const PRESENT_TASK_BAR_H = 18;
+const PRESENT_BADGE_RADIUS = 3;
+const PRESENT_TASK_BAR_FONT_SIZE = 10.5;
+const PRESENT_TASK_BAR_FONT = `600 ${PRESENT_TASK_BAR_FONT_SIZE}px ${SANS_FAMILY}`;
+const PRESENT_TASK_BAR_PAD_X = 8;
+const PRESENT_TASK_BAR_LABEL_GAP = 6;
+const PRESENT_HOLIDAY_COLUMN_BG = '#fffbeb';
 
 interface PresentColumnWidths {
   status: number;
@@ -277,7 +285,7 @@ const TD = (style: string, content: string, extra = '') =>
   `<td style="${style}" ${extra}>${content}</td>`;
 
 function badge(text: string, color: string) {
-  return `<span style="display:inline-block;padding:1px 6px;border-radius:3px;background:${color};color:#fff;font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap;line-height:1.4">${text}</span>`;
+  return `<span style="display:inline-block;padding:1px 6px;border-radius:${PRESENT_BADGE_RADIUS}px;background:${color};color:#fff;font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap;line-height:1.4">${text}</span>`;
 }
 
 function pctCell(pct: number, color: string) {
@@ -289,19 +297,59 @@ function pctCell(pct: number, color: string) {
   </div>`;
 }
 
-function ganttCells(startDate: string, endDate: string, cols: ReturnType<typeof generateColumns>, color: string, isProject = false): string {
+function escapeHtml(text: string) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function ganttCells(
+  startDate: string,
+  endDate: string,
+  cols: ReturnType<typeof generateColumns>,
+  holidays: string[],
+  color: string,
+  isProject = false,
+  label = '',
+  dayColumnWidth = CELL_W
+): string {
   const startIdx = cols.findIndex(c => c.dateStr === startDate);
   const endIdx   = cols.findIndex(c => c.dateStr === endDate);
+  const trimmedLabel = label.trim();
+  const barSpan = startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx
+    ? endIdx - startIdx + 1
+    : 0;
+  const showTaskLabel = !isProject && trimmedLabel.length > 0 && barSpan > 0;
+  const barWidthPx = Math.max(0, barSpan * dayColumnWidth - 4);
+  const labelTextWidthPx = showTaskLabel
+    ? Math.ceil(measureTextWidth(trimmedLabel, PRESENT_TASK_BAR_FONT))
+    : 0;
+  const labelFitsInsideBar = labelTextWidthPx + PRESENT_TASK_BAR_PAD_X * 2 <= barWidthPx;
 
   return cols.map((c, i) => {
     const inRange     = startIdx !== -1 && endIdx !== -1 && i >= startIdx && i <= endIdx;
+    const isHolidayColumn = holidays.includes(c.dateStr);
     const isWeekStart = c.dayIndex === 0;
-    const cellBg = isProject ? '#f0f4f8' : (inRange ? color + 'cc' : 'transparent');
+    const cellBg = isHolidayColumn
+      ? PRESENT_HOLIDAY_COLUMN_BG
+      : (isProject ? '#f0f4f8' : 'transparent');
 
     const borderLeft = `border-left:${isWeekStart ? '1px solid #94a3b8' : '1px solid #e2e8f0'};`;
     const borderBot  = 'border-bottom:1px solid #e2e8f0;';
+    const labelBar = showTaskLabel && i === startIdx
+      ? `<div style="position:relative;height:${PRESENT_TASK_BAR_SLOT_H}px;overflow:visible;z-index:2">
+          <div style="position:absolute;left:2px;top:50%;transform:translateY(-50%);width:${barWidthPx}px;height:${PRESENT_TASK_BAR_H}px;border-radius:${PRESENT_BADGE_RADIUS}px;background:${color};box-shadow:inset 0 0 0 1px rgba(15,23,42,0.08);display:flex;align-items:center;${labelFitsInsideBar ? `padding:0 ${PRESENT_TASK_BAR_PAD_X}px;overflow:hidden;text-overflow:ellipsis;` : ''}white-space:nowrap;color:#fff;font-size:${PRESENT_TASK_BAR_FONT_SIZE}px;font-weight:600;line-height:1;text-shadow:0 1px 1px rgba(15,23,42,0.35)">${labelFitsInsideBar ? escapeHtml(trimmedLabel) : ''}</div>
+          ${labelFitsInsideBar ? '' : `<div style="position:absolute;left:${barWidthPx + PRESENT_TASK_BAR_LABEL_GAP}px;top:50%;transform:translateY(-50%);white-space:nowrap;color:#0f172a;font-size:${PRESENT_TASK_BAR_FONT_SIZE}px;font-weight:600;line-height:1">${escapeHtml(trimmedLabel)}</div>`}
+        </div>`
+      : '';
+    const cellContent = isProject
+      ? ''
+      : labelBar;
 
-    return `<td style="width:var(--day-col-width, ${CELL_W}px);min-width:var(--day-col-width, ${CELL_W}px);max-width:var(--day-col-width, ${CELL_W}px);padding:0;background:${cellBg};${borderLeft}${borderBot}"></td>`;
+    return `<td style="width:var(--day-col-width, ${CELL_W}px);min-width:var(--day-col-width, ${CELL_W}px);max-width:var(--day-col-width, ${CELL_W}px);padding:0;position:relative;overflow:visible;background:${cellBg};${!isProject && !isHolidayColumn && !showTaskLabel && inRange ? `background:${color}cc;` : ''}${borderLeft}${borderBot}">${cellContent}</td>`;
   }).join('');
 }
 
@@ -328,6 +376,8 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
     }
   }
 
+  const columnWidths = getPresentColumnWidths(timeline, cols, weekGroups);
+
   // ── Build rows ─────────────────────────────────────────────────────────
   let rowsHtml = '';
 
@@ -349,7 +399,7 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
       ${TD(`${CELL_STYLE(rowBg, true)}text-align:center;font-size:12px;`, String(pDays || '—'))}
       ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;color:#475569;`, project.deliverable || '—')}
       ${TD(`${CELL_STYLE(rowBg, true)}`, '—')}
-      ${ganttCells(pS, pE, cols, projColor, true)}
+      ${ganttCells(pS, pE, cols, timeline.holidays, projColor, true, '', columnWidths.day)}
     </tr>`;
 
     for (const task of project.tasks) {
@@ -367,7 +417,7 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
         ${TD(`${CELL_STYLE('#fff', false)}text-align:center;font-size:12px;`, String(days || '—'))}
         ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;color:#64748b;`, task.deliverable || '—')}
         ${TD(`${CELL_STYLE('#fff', false)}`, pctCell(task.percentComplete, taskBarColor))}
-        ${ganttCells(task.startDate, task.endDate, cols, taskBarColor)}
+        ${ganttCells(task.startDate, task.endDate, cols, timeline.holidays, taskBarColor, false, task.name, columnWidths.day)}
       </tr>`;
     }
   }
@@ -391,7 +441,6 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
 
   const today = format(new Date(), 'dd/MM/yyyy HH:mm');
   const CONTENT_PAD = 24; // horizontal padding each side
-  const columnWidths = getPresentColumnWidths(timeline, cols, weekGroups);
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${title}</title>
