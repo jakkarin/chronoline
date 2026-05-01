@@ -22,17 +22,18 @@ const MONO_FAMILY = "'Ubuntu Mono', monospace";
 const HEADER_FONT = `700 10px ${SANS_FAMILY}`;
 const BADGE_FONT = `700 10px ${SANS_FAMILY}`;
 const PROJECT_NAME_FONT = `700 12px ${SANS_FAMILY}`;
-const TASK_NAME_FONT = `400 11px ${SANS_FAMILY}`;
+const TASK_NAME_FONT = `400 12px ${SANS_FAMILY}`;
 const PROJECT_BODY_FONT = `400 12px ${SANS_FAMILY}`;
-const TASK_BODY_FONT = `400 10.5px ${SANS_FAMILY}`;
+const TASK_BODY_FONT = `400 12px ${SANS_FAMILY}`;
 const PROJECT_MONO_FONT = `400 12px ${MONO_FAMILY}`;
-const TASK_MONO_FONT = `400 10.5px ${MONO_FAMILY}`;
+const TASK_MONO_FONT = `400 12px ${MONO_FAMILY}`;
 const PERCENT_FONT = `400 9.5px ${MONO_FAMILY}`;
 const DAY_LABEL_FONT = `600 10px ${SANS_FAMILY}`;
 const DAY_DATE_FONT = `400 8px ${SANS_FAMILY}`;
 const WEEK_HEADER_FONT = `600 10px ${SANS_FAMILY}`;
 const HEADER_CELL_PAD_X = 16;
 const BODY_CELL_PAD_X = 16;
+const START_END_CELL_PAD_X = 28;
 const TASK_CELL_PAD_X = 12;
 const BADGE_PAD_X = 12;
 const DAY_TEXT_PAD_X = 10;
@@ -80,8 +81,8 @@ function measureTextWidth(text: string, font: string, letterSpacing = 0) {
   return Math.ceil(ctx.measureText(content).width + letterSpacingWidth);
 }
 
-function measureHeaderCellWidth(text: string, minWidth: number) {
-  return Math.max(minWidth, measureTextWidth(text, HEADER_FONT, 0.5) + HEADER_CELL_PAD_X);
+function measureHeaderCellWidth(text: string, minWidth: number, cellPaddingX = HEADER_CELL_PAD_X) {
+  return Math.max(minWidth, measureTextWidth(text, HEADER_FONT, 0.5) + cellPaddingX);
 }
 
 function measureBodyCellWidth(text: string, font: string, minWidth: number, cellPaddingX = BODY_CELL_PAD_X) {
@@ -112,8 +113,8 @@ function getPresentColumnWidths(
     indentWidth + MIN_INFO_COL_WIDTHS.task
   );
   let taskWidth: number = MIN_INFO_COL_WIDTHS.task;
-  let startWidth = measureHeaderCellWidth('START', MIN_INFO_COL_WIDTHS.start);
-  let endWidth = measureHeaderCellWidth('END', MIN_INFO_COL_WIDTHS.end);
+  let startWidth = measureHeaderCellWidth('START', MIN_INFO_COL_WIDTHS.start, START_END_CELL_PAD_X);
+  let endWidth = measureHeaderCellWidth('END', MIN_INFO_COL_WIDTHS.end, START_END_CELL_PAD_X);
   let daysWidth = measureHeaderCellWidth('DAYS', MIN_INFO_COL_WIDTHS.days);
   let deliverableWidth = measureHeaderCellWidth('DELIVERABLE', MIN_INFO_COL_WIDTHS.deliverable);
   let percentWidth = Math.max(
@@ -156,7 +157,8 @@ function getPresentColumnWidths(
       measureBodyCellWidth(
         projectStart ? format(parseISO(projectStart), 'dd/MM/yy') : '—',
         PROJECT_MONO_FONT,
-        MIN_INFO_COL_WIDTHS.start
+        MIN_INFO_COL_WIDTHS.start,
+        START_END_CELL_PAD_X
       )
     );
     endWidth = Math.max(
@@ -164,7 +166,8 @@ function getPresentColumnWidths(
       measureBodyCellWidth(
         projectEnd ? format(parseISO(projectEnd), 'dd/MM/yy') : '—',
         PROJECT_MONO_FONT,
-        MIN_INFO_COL_WIDTHS.end
+        MIN_INFO_COL_WIDTHS.end,
+        START_END_CELL_PAD_X
       )
     );
     daysWidth = Math.max(
@@ -197,7 +200,8 @@ function getPresentColumnWidths(
         measureBodyCellWidth(
           task.startDate ? format(parseISO(task.startDate), 'dd/MM/yy') : '—',
           TASK_MONO_FONT,
-          MIN_INFO_COL_WIDTHS.start
+          MIN_INFO_COL_WIDTHS.start,
+          START_END_CELL_PAD_X
         )
       );
       endWidth = Math.max(
@@ -205,7 +209,8 @@ function getPresentColumnWidths(
         measureBodyCellWidth(
           task.endDate ? format(parseISO(task.endDate), 'dd/MM/yy') : '—',
           TASK_MONO_FONT,
-          MIN_INFO_COL_WIDTHS.end
+          MIN_INFO_COL_WIDTHS.end,
+          START_END_CELL_PAD_X
         )
       );
       daysWidth = Math.max(
@@ -339,8 +344,8 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
       ${TD(CELL_STYLE(rowBg, true), badge(project.status, projColor))}
       ${TD(CELL_STYLE(rowBg, true), '')}
       ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;font-weight:700;color:#0f172a;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`, project.name, 'colspan="2"')}
-      ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;`, pS ? format(parseISO(pS),'dd/MM/yy') : '—')}
-      ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;`, pE ? format(parseISO(pE),'dd/MM/yy') : '—')}
+      ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, pS ? format(parseISO(pS),'dd/MM/yy') : '—')}
+      ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, pE ? format(parseISO(pE),'dd/MM/yy') : '—')}
       ${TD(`${CELL_STYLE(rowBg, true)}text-align:center;font-size:12px;`, String(pDays || '—'))}
       ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;color:#475569;`, project.deliverable || '—')}
       ${TD(`${CELL_STYLE(rowBg, true)}`, '—')}
@@ -355,12 +360,12 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
       rowsHtml += `<tr>
         ${TD(CELL_STYLE('#fff', false), badge(task.status, statusColor))}
         ${TD(CELL_STYLE('#fff', false), task.priority ? badge(task.priority, PRIORITY_BAR_COLOR[task.priority] ?? '#888') : '')}
-        ${TD(`${CELL_STYLE('#fff', false)}font-size:11px;color:#cbd5e1;padding:0;text-align:center;overflow:hidden;`, '↳')}
-        ${TD(`${CELL_STYLE('#fff', false)}font-size:11px;color:#334155;padding-left:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`, task.name)}
-        ${TD(`${CELL_STYLE('#fff', false)}font-size:10.5px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;`, task.startDate ? format(parseISO(task.startDate),'dd/MM/yy') : '—')}
-        ${TD(`${CELL_STYLE('#fff', false)}font-size:10.5px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;`, task.endDate ? format(parseISO(task.endDate),'dd/MM/yy') : '—')}
-        ${TD(`${CELL_STYLE('#fff', false)}text-align:center;font-size:10.5px;`, String(days || '—'))}
-        ${TD(`${CELL_STYLE('#fff', false)}font-size:10.5px;color:#64748b;`, task.deliverable || '—')}
+        ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;color:#cbd5e1;padding:0;text-align:center;overflow:hidden;`, '↳')}
+        ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;color:#334155;padding-left:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`, task.name)}
+        ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, task.startDate ? format(parseISO(task.startDate),'dd/MM/yy') : '—')}
+        ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, task.endDate ? format(parseISO(task.endDate),'dd/MM/yy') : '—')}
+        ${TD(`${CELL_STYLE('#fff', false)}text-align:center;font-size:12px;`, String(days || '—'))}
+        ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;color:#64748b;`, task.deliverable || '—')}
         ${TD(`${CELL_STYLE('#fff', false)}`, pctCell(task.percentComplete, taskBarColor))}
         ${ganttCells(task.startDate, task.endDate, cols, taskBarColor)}
       </tr>`;
@@ -462,8 +467,8 @@ window.__capture = function() {
       ${TH(INFO_TH, 'STATUS', 'rowspan="2"')}
       ${TH(INFO_TH, 'PRIORITY', 'rowspan="2"')}
       ${TH(INFO_TH, 'PROJECT + TASK', 'rowspan="2" colspan="2"')}
-      ${TH(INFO_TH, 'START', 'rowspan="2"')}
-      ${TH(INFO_TH, 'END', 'rowspan="2"')}
+      ${TH(`${INFO_TH}padding:5px 14px;`, 'START', 'rowspan="2"')}
+      ${TH(`${INFO_TH}padding:5px 14px;`, 'END', 'rowspan="2"')}
       ${TH(`${INFO_TH}text-align:center;`, 'DAYS', 'rowspan="2"')}
       ${TH(INFO_TH, 'DELIVERABLE', 'rowspan="2"')}
       ${TH(`${INFO_TH}text-align:center;`, '%', 'rowspan="2"')}
