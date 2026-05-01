@@ -73,12 +73,12 @@ function SortableProjectRow({ project, cols, holidays, freeze }: ProjectRowProps
   const totalCols = 11 + cols.length;
 
   return (
-    <>
-      <tr
-        ref={setNodeRef}
-        style={style}
-        className="group/project bg-muted/30 font-semibold text-[12px]"
-      >
+    <tbody
+      ref={setNodeRef}
+      style={style}
+      className="group/project"
+    >
+      <tr className="bg-muted/30 font-semibold text-[12px]">
         <td className={`${freeze ? 'sticky left-0 z-2' : ''} bg-inherit border-b border-r border-border`}>
           <div className="flex items-center px-1 py-1 gap-0.5">
             <button
@@ -208,7 +208,7 @@ function SortableProjectRow({ project, cols, holidays, freeze }: ProjectRowProps
           </td>
         </tr>
       )}
-    </>
+    </tbody>
   );
 }
 
@@ -546,29 +546,29 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
           </tr>
         </thead>
 
-        <tbody>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
-            <SortableContext items={timeline.projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-              {timeline.projects.map((project) => (
-                <SortableProjectRow
-                  key={project.id}
-                  project={project}
-                  cols={cols}
-                  holidays={timeline.holidays}
-                  freeze={freeze}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
+          <SortableContext items={timeline.projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            {timeline.projects.map((project) => (
+              <SortableProjectRow
+                key={project.id}
+                project={project}
+                cols={cols}
+                holidays={timeline.holidays}
+                freeze={freeze}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
 
-          {timeline.projects.length === 0 && (
+        {timeline.projects.length === 0 && (
+          <tbody>
             <tr>
               <td colSpan={totalCols} className="text-center py-16 text-muted-foreground text-sm">
                 No projects yet — click &ldquo;+ Project&rdquo; in the toolbar to get started.
               </td>
             </tr>
-          )}
-        </tbody>
+          </tbody>
+        )}
       </table>
     </div>
   );
