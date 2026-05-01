@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useTimelineStore } from '@/store/timeline-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DeferredInput } from '@/components/deferred-input';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export function EditorHeader() {
@@ -27,19 +28,19 @@ export function EditorHeader() {
       </Button>
 
       <div className="flex-1 min-w-0 flex flex-wrap items-center gap-3">
-        <Input
-          className="h-8 text-sm font-semibold max-w-56"
+        <DeferredInput
+          className="h-8 text-sm font-semibold max-w-56 rounded-lg border border-input bg-transparent px-2.5 py-1 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           value={timeline.title}
-          onChange={(e) => setMeta({ title: e.target.value })}
+          onCommit={(v) => setMeta({ title: v })}
           aria-label="Timeline title"
         />
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="uppercase font-semibold tracking-wide text-[10px]">Customer</span>
-            <Input
-              className="h-6 text-xs w-28"
+            <DeferredInput
+              className="h-6 text-xs w-28 rounded-lg border border-input bg-transparent px-2.5 py-1 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               value={timeline.customer}
-              onChange={(e) => setMeta({ customer: e.target.value })}
+              onCommit={(v) => setMeta({ customer: v })}
               placeholder="—"
               aria-label="Customer"
             />
@@ -69,10 +70,10 @@ export function EditorHeader() {
           {timeline.note !== undefined && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="uppercase font-semibold tracking-wide text-[10px]">Note</span>
-              <Input
-                className="h-6 text-xs w-28"
+              <DeferredInput
+                className="h-6 text-xs w-28 rounded-lg border border-input bg-transparent px-2.5 py-1 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 value={timeline.note}
-                onChange={(e) => setMeta({ note: e.target.value })}
+                onCommit={(v) => setMeta({ note: v })}
                 placeholder="—"
                 aria-label="Note"
               />

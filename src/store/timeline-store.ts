@@ -181,11 +181,11 @@ export const useTimelineStore = create<TimelineStore>()(
     {
       limit: 50,
       partialize: (s) => ({ timeline: s.timeline }),
-      equality: (a, b) => JSON.stringify(a.timeline) === JSON.stringify(b.timeline),
-      handleSet: (handleSet) => (state) => {
-        const s = typeof state === 'function' ? state(useTimelineStore.getState()) : state;
-        if (s.timeline === null) return;
-        handleSet(state);
+      equality: (a, b) => a.timeline === b.timeline,
+      handleSet: (handleSet) => (pastState, _replace, currentState) => {
+        // Don't track transitions into a null timeline (page leave / unmount).
+        if (currentState && currentState.timeline === null) return;
+        handleSet(pastState);
       },
     }
   )
