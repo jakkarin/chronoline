@@ -588,7 +588,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
           <tbody>
             <tr>
               <td colSpan={totalCols} className="text-center py-16 text-muted-foreground text-sm">
-                No projects yet — click &ldquo;+ Project&rdquo; in the toolbar to get started.
+                No projects yet — click &ldquo;+ Group&rdquo; in the toolbar to get started.
               </td>
             </tr>
           </tbody>

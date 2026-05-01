@@ -81,7 +81,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
     <>
       <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border bg-background shrink-0 flex-wrap" data-pdf-hide>
         <Button size="sm" onClick={addProject} className="h-7 text-xs gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Project
+          <Plus className="h-3.5 w-3.5" /> Group
         </Button>
 
         <Separator orientation="vertical" className="h-5" />
