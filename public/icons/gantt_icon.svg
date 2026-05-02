@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background fills entire viewBox (iOS-style rounded square, ~22.5% corner radius) -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="#0C0C0C"/>
+
+  <!-- Grid centered at (512, 512), spacing = 155 -->
+  <g stroke="#262626" stroke-width="4" stroke-linecap="square">
+    <!-- Verticals: x = 200, 355, 512, 670, 825 -->
+    <line x1="200" y1="152" x2="200" y2="873"/>
+    <line x1="355" y1="152" x2="355" y2="873"/>
+    <line x1="512" y1="152" x2="512" y2="873"/>
+    <line x1="670" y1="152" x2="670" y2="873"/>
+    <line x1="825" y1="152" x2="825" y2="873"/>
+
+    <!-- Horizontals: y = 280, 435, 590, 745 -->
+    <line x1="105" y1="280" x2="920" y2="280"/>
+    <line x1="105" y1="435" x2="920" y2="435"/>
+    <line x1="105" y1="590" x2="920" y2="590"/>
+    <line x1="105" y1="745" x2="920" y2="745"/>
+  </g>
+
+  <!-- Gantt bars -->
+  <!-- White: row 1, center y=357.5 -->
+  <rect x="116" y="308" width="560" height="100" rx="50" ry="50" fill="#F4F4F4"/>
+
+  <!-- Cyan: row 2, center y=512.5 -->
+  <rect x="455" y="462" width="460" height="100" rx="50" ry="50" fill="#22C8E0"/>
+
+  <!-- Gray: row 3, center y=667.5 -->
+  <rect x="590" y="620" width="325" height="95" rx="47" ry="47" fill="#8A8A8A"/>
+</svg>
