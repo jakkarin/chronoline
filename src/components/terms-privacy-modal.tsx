@@ -97,8 +97,9 @@ export function TermsPrivacyModal({
             <section>
               <h3 className="font-semibold text-base mb-2">Open Source</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Chronoline is open source. You can inspect the code, self-host,
-                or contribute to the project.
+                Chronoline is designed to be shareable and self-hostable. See
+                the project repository for source, licensing, and contribution
+                details.
               </p>
             </section>
           </div>

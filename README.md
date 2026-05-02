@@ -96,3 +96,11 @@ public/
 - Working-day columns are Monday through Friday only.
 - The app is intentionally local-first; there is no server sync in this version.
 
+## Open Source
+
+- Project license: MIT. See `LICENSE`.
+- Contribution guide: `CONTRIBUTING.md`.
+- Community expectations: `CODE_OF_CONDUCT.md`.
+- Security reporting: `SECURITY.md`.
+- Third-party notices: `THIRD-PARTY-NOTICES.md`.
+
