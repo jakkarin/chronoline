@@ -1,74 +1,98 @@
-# React + TypeScript + Vite
+# Chronoline
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Chronoline is a local-first, browser-only Gantt and project timeline app. It runs entirely on the client, stores data in IndexedDB via Dexie, and can be installed as a PWA.
 
-Currently, two official plugins are available:
+No backend. No auth. Timeline data stays in the browser.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- Dashboard for creating, searching, sorting, and opening timelines.
+- Timeline editor with groups, tasks, working-day columns, inline editing, and frozen left columns.
+- Drag and resize Gantt bars directly in the grid.
+- Reorder groups and tasks with a dedicated reorder flow.
+- Undo and redo with optimistic autosave.
+- Named versions with restore and optional backup-before-restore.
+- JSON import/export for moving timelines in and out of the app.
+- Presentation and export flows for shareable timeline captures.
+- Light and dark theme support.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the ESLint configuration
+- React 19
+- TypeScript 6
+- Vite 8
+- Tailwind CSS v4
+- shadcn/ui
+- Zustand + zundo + Immer
+- Dexie
+- React Router 7
+- date-fns
+- zod
+- @dnd-kit
+- vite-plugin-pwa
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Requirements:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Node.js
+- npm
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Install dependencies:
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Start the development server:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+Run lint:
+
+```bash
+npm run lint
+```
+
+Run type-checking:
+
+```bash
+npx tsc --noEmit --ignoreDeprecations 6.0
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+## How It Works
+
+- Timeline metadata, full timeline data, and saved versions are stored in separate IndexedDB tables.
+- Autosave is debounced and optimistic: the editor updates first, then persists to Dexie.
+- On first launch, the app seeds a sample timeline if the local database is empty.
+- JSON import can either replace the current timeline or create a new one.
+- Saved versions snapshot projects and holidays so a timeline can be restored later.
+
+## Project Structure
+
+```text
+src/
+  components/    Shared UI and app-level components
+  features/      Dashboard, timeline editor, and IO flows
+  hooks/         Timeline loading and autosave hooks
+  lib/           Data model, date utilities, Dexie repositories, helpers
+  routes/        Dashboard, timeline editor, and not-found routes
+  store/         Zustand timeline store with undo/redo
+public/
+  icons/         App icons and PWA assets
+```
+
+## Notes
+
+- Dates are stored as `YYYY-MM-DD` strings.
+- Working-day columns are Monday through Friday only.
+- The app is intentionally local-first; there is no server sync in this version.
 
