@@ -361,7 +361,7 @@ function ganttCells(
     const borderBot  = 'border-bottom:1px solid #e2e8f0;';
     const labelBar = showTaskLabel && i === startIdx
       ? `<div style="position:relative;height:${PRESENT_TASK_BAR_SLOT_H}px;overflow:visible;z-index:2">
-          <div style="position:absolute;left:2px;top:50%;transform:translateY(-50%);width:${barWidthPx}px;height:${PRESENT_TASK_BAR_H}px;border-radius:${PRESENT_BADGE_RADIUS}px;background:${color};box-shadow:inset 0 0 0 1px rgba(15,23,42,0.08);display:flex;align-items:center;${labelFitsInsideBar ? `padding:0 ${PRESENT_TASK_BAR_PAD_X}px;overflow:hidden;text-overflow:ellipsis;` : ''}white-space:nowrap;color:#fff;font-size:${PRESENT_TASK_BAR_FONT_SIZE}px;font-weight:600;line-height:1;text-shadow:0 1px 1px rgba(15,23,42,0.35)">${labelFitsInsideBar ? escapeHtml(trimmedLabel) : ''}</div>
+          <div style="position:absolute;left:2px;top:50%;transform:translateY(-50%);width:${barWidthPx}px;height:${PRESENT_TASK_BAR_H}px;border-radius:${PRESENT_BADGE_RADIUS}px;background:${color};display:flex;align-items:center;${labelFitsInsideBar ? `padding:0 ${PRESENT_TASK_BAR_PAD_X}px;overflow:hidden;text-overflow:ellipsis;` : ''}white-space:nowrap;color:#fff;font-size:${PRESENT_TASK_BAR_FONT_SIZE}px;font-weight:600;line-height:1;text-shadow:0 1px 1px rgba(15,23,42,0.35)">${labelFitsInsideBar ? escapeHtml(trimmedLabel) : ''}</div>
           ${labelFitsInsideBar ? '' : `<div style="position:absolute;left:${barWidthPx + PRESENT_TASK_BAR_LABEL_GAP}px;top:50%;transform:translateY(-50%);white-space:nowrap;color:#0f172a;font-size:${PRESENT_TASK_BAR_FONT_SIZE}px;font-weight:600;line-height:1">${escapeHtml(trimmedLabel)}</div>`}
         </div>`
       : '';
