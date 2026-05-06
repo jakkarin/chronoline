@@ -10,6 +10,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 export function EditorHeader() {
   const navigate = useNavigate();
   const timeline = useTimelineStore((s) => s.timeline);
+  const editorSession = useTimelineStore((s) => s.editorSession);
   const saveStatus = useTimelineStore((s) => s.saveStatus);
   const setMeta = useTimelineStore((s) => s.setMeta);
 
@@ -34,6 +35,11 @@ export function EditorHeader() {
           onCommit={(v) => setMeta({ title: v })}
           aria-label="Timeline title"
         />
+        {editorSession?.mode === 'file' && (
+          <span className="inline-flex h-6 items-center rounded-full border border-border bg-muted px-2.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Direct Edit · {editorSession.fileName}
+          </span>
+        )}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="uppercase font-semibold tracking-wide text-[10px]">Customer</span>

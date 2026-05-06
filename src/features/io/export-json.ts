@@ -1,14 +1,10 @@
 import { versionsRepo } from '@/lib/db/versions';
-import type { Timeline, TimelineExport } from '@/lib/types';
+import type { Timeline, TimelineVersion } from '@/lib/types';
+import { buildTimelineExportEnvelope } from '@/lib/timeline-file';
 
-export async function exportJSON(timeline: Timeline) {
-  const versions = await versionsRepo.list(timeline.id);
-  const envelope: TimelineExport = {
-    $schema: 'project-timeline/v1',
-    exportedAt: new Date().toISOString(),
-    timeline,
-    versions,
-  };
+export async function exportJSON(timeline: Timeline, versions?: TimelineVersion[]) {
+  const resolvedVersions = versions ?? await versionsRepo.list(timeline.id);
+  const envelope = buildTimelineExportEnvelope(timeline, resolvedVersions);
   const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

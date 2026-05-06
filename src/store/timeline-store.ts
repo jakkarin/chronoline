@@ -1,17 +1,46 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { produce } from 'immer';
-import type { Timeline, TimelineMeta, Project, Task } from '@/lib/types';
+import type { Timeline, TimelineMeta, Project, Task, TimelineVersion } from '@/lib/types';
 import { newId } from '@/lib/id';
 import { versionsRepo } from '@/lib/db/versions';
 import { timelineRepo } from '@/lib/db/timelines';
+import type { EditorSession } from '@/lib/timeline-file';
+import { VERSION_SCHEMA_VERSION } from '@/lib/db/schema';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+function computeVersionStats(projects: Project[]) {
+  return {
+    projectCount: projects.length,
+    taskCount: projects.reduce((sum, project) => sum + project.tasks.length, 0),
+  };
+}
+
+function buildInMemoryVersion(timeline: Timeline, name: string, note?: string): TimelineVersion {
+  const snapshot = structuredClone({
+    projects: timeline.projects,
+    holidays: timeline.holidays,
+  });
+
+  return {
+    id: newId('v'),
+    timelineId: timeline.id,
+    name: name.trim(),
+    note: note?.trim() || undefined,
+    createdAt: Date.now(),
+    schemaVersion: VERSION_SCHEMA_VERSION,
+    snapshot,
+    stats: computeVersionStats(snapshot.projects),
+  };
+}
+
 interface TimelineStore {
   timeline: Timeline | null;
+  editorSession: EditorSession | null;
   saveStatus: SaveStatus;
   setTimeline: (tl: Timeline | null) => void;
+  setEditorSession: (session: EditorSession | null) => void;
   setSaveStatus: (s: SaveStatus) => void;
   setMeta: (patch: Partial<TimelineMeta>) => void;
   addProject: () => void;
@@ -23,6 +52,8 @@ interface TimelineStore {
   moveProject: (fromIdx: number, toIdx: number) => void;
   moveTask: (fromProjectId: string, fromIdx: number, toProjectId: string, toIdx: number) => void;
   toggleHoliday: (date: string) => void;
+  renameVersion: (versionId: string, name: string) => Promise<void>;
+  deleteVersion: (versionId: string) => Promise<void>;
   saveVersion: (name: string, note?: string) => Promise<void>;
   restoreVersion: (versionId: string, backupCurrent?: boolean) => Promise<void>;
 }
@@ -31,9 +62,11 @@ export const useTimelineStore = create<TimelineStore>()(
   temporal(
     (set) => ({
       timeline: null,
+      editorSession: null,
       saveStatus: 'idle',
 
       setTimeline: (tl) => set({ timeline: tl }),
+      setEditorSession: (session) => set({ editorSession: session }),
       setSaveStatus: (s) => set({ saveStatus: s }),
 
       setMeta: (patch) =>
@@ -169,15 +202,96 @@ export const useTimelineStore = create<TimelineStore>()(
           })
         ),
 
+      renameVersion: async (versionId, name) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+
+        const session = useTimelineStore.getState().editorSession;
+        if (session?.mode === 'file') {
+          set(
+            produce((state: TimelineStore) => {
+              if (state.editorSession?.mode !== 'file') return;
+              const version = state.editorSession.versions.find((entry) => entry.id === versionId);
+              if (!version) return;
+              version.name = trimmed;
+              state.saveStatus = 'idle';
+            })
+          );
+          return;
+        }
+
+        await versionsRepo.rename(versionId, trimmed);
+      },
+
+      deleteVersion: async (versionId) => {
+        const session = useTimelineStore.getState().editorSession;
+        if (session?.mode === 'file') {
+          set(
+            produce((state: TimelineStore) => {
+              if (state.editorSession?.mode !== 'file') return;
+              state.editorSession.versions = state.editorSession.versions.filter((entry) => entry.id !== versionId);
+              state.saveStatus = 'idle';
+            })
+          );
+          return;
+        }
+
+        await versionsRepo.remove(versionId);
+      },
+
       saveVersion: async (name, note) => {
         const tl = useTimelineStore.getState().timeline;
         if (!tl) return;
+
+        const session = useTimelineStore.getState().editorSession;
+        if (session?.mode === 'file') {
+          const version = buildInMemoryVersion(tl, name, note);
+          set(
+            produce((state: TimelineStore) => {
+              if (state.editorSession?.mode !== 'file') return;
+              state.editorSession.versions.unshift(version);
+              state.saveStatus = 'idle';
+            })
+          );
+          return;
+        }
+
         await versionsRepo.create(tl.id, name, note);
       },
 
       restoreVersion: async (versionId, backupCurrent = true) => {
         const tl = useTimelineStore.getState().timeline;
         if (!tl) return;
+
+        const session = useTimelineStore.getState().editorSession;
+        if (session?.mode === 'file') {
+          set(
+            produce((state: TimelineStore) => {
+              if (!state.timeline || state.editorSession?.mode !== 'file') return;
+              const version = state.editorSession.versions.find((entry) => entry.id === versionId);
+              if (!version) return;
+
+              if (backupCurrent) {
+                state.editorSession.versions.unshift(
+                  buildInMemoryVersion(
+                    state.timeline,
+                    `Before restore "${version.name}"`,
+                    `Auto-saved on ${new Date().toLocaleString()}`
+                  )
+                );
+              }
+
+              state.timeline.projects = structuredClone(version.snapshot.projects);
+              state.timeline.holidays = structuredClone(version.snapshot.holidays);
+              state.timeline.updatedAt = Date.now();
+              Object.assign(state.timeline, computeVersionStats(state.timeline.projects));
+              state.saveStatus = 'idle';
+            })
+          );
+          useTimelineStore.temporal.getState().clear();
+          return;
+        }
+
         await versionsRepo.restore(versionId, { backupCurrent });
         const refreshed = await timelineRepo.get(tl.id);
         if (refreshed) {

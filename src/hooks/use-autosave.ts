@@ -4,11 +4,17 @@ import { timelineRepo } from '@/lib/db/timelines';
 
 export function useAutosave() {
   const timeline = useTimelineStore((s) => s.timeline);
+  const editorSession = useTimelineStore((s) => s.editorSession);
   const setSaveStatus = useTimelineStore((s) => s.setSaveStatus);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!timeline) return;
+    if (!timeline || !editorSession) return;
+
+    if (editorSession.mode === 'file') {
+      setSaveStatus('idle');
+      return;
+    }
 
     if (timerRef.current) clearTimeout(timerRef.current);
 
@@ -25,5 +31,5 @@ export function useAutosave() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [timeline, setSaveStatus]);
+  }, [editorSession, timeline, setSaveStatus]);
 }

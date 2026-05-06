@@ -34,7 +34,10 @@ interface Props {
 
 export function VersionHistorySheet({ open, onOpenChange }: Props) {
   const timelineId = useTimelineStore((s) => s.timeline?.id);
+  const editorSession = useTimelineStore((s) => s.editorSession);
   const restoreVersion = useTimelineStore((s) => s.restoreVersion);
+  const renameVersion = useTimelineStore((s) => s.renameVersion);
+  const deleteVersion = useTimelineStore((s) => s.deleteVersion);
   const [versions, setVersions] = useState<TimelineVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -45,6 +48,13 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
 
   const refresh = useCallback(async () => {
     if (!timelineId) return;
+
+    if (editorSession?.mode === 'file') {
+      setVersions(editorSession.versions);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const list = await versionsRepo.list(timelineId);
@@ -52,7 +62,7 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [timelineId]);
+  }, [editorSession, timelineId]);
 
   useEffect(() => {
     if (open) {
@@ -65,7 +75,7 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
   async function handleRename(id: string) {
     const trimmed = renameVal.trim();
     if (trimmed) {
-      await versionsRepo.rename(id, trimmed);
+      await renameVersion(id, trimmed);
       await refresh();
     }
     setRenamingId(null);
@@ -73,7 +83,7 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    await versionsRepo.remove(deleteTarget.id);
+    await deleteVersion(deleteTarget.id);
     setDeleteTarget(null);
     await refresh();
     toast.success('Version deleted');
@@ -184,7 +194,7 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
                 </p>
 
                 {v.note && (
-                  <p className="text-xs text-muted-foreground/90 mt-1.5 whitespace-pre-wrap break-words">
+                  <p className="text-xs text-muted-foreground/90 mt-1.5 whitespace-pre-wrap wrap-break-word">
                     {v.note}
                   </p>
                 )}
