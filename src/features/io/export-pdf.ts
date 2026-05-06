@@ -49,6 +49,7 @@ const PERCENT_LABEL_MIN_W = 18;
 const PERCENT_CONTENT_MIN_W = 70;
 const PERCENT_BAR_MIN_W = 49;
 const PERCENT_GAP_W = 3;
+const TEXT_COLUMN_FIT_SLACK = 14;
 const PRESENT_TASK_BAR_SLOT_H = 26;
 const PRESENT_TASK_BAR_H = 18;
 const PRESENT_BADGE_RADIUS = 3;
@@ -57,6 +58,15 @@ const PRESENT_TASK_BAR_FONT = `600 ${PRESENT_TASK_BAR_FONT_SIZE}px ${SANS_FAMILY
 const PRESENT_TASK_BAR_PAD_X = 8;
 const PRESENT_TASK_BAR_LABEL_GAP = 6;
 const PRESENT_HOLIDAY_COLUMN_BG = '#fffbeb';
+const FONT_LOAD_TIMEOUT_MS = 4000;
+
+const PRESENT_FONT_LOAD_REQUESTS = [
+  ['700 10px "Geist Variable"', 'BESbswy'],
+  ['400 12px "Geist Variable"', 'BESbswy'],
+  ['600 10.5px "Geist Variable"', 'BESbswy'],
+  ['400 12px "Noto Sans Thai"', 'ภาษาไทย'],
+  ['400 12px "Ubuntu Mono"', '0123456789/%-'],
+] as const;
 
 interface PresentColumnWidths {
   status: number;
@@ -105,6 +115,13 @@ function measureBodyCellWidth(text: string, font: string, minWidth: number, cell
   return Math.max(minWidth, measureTextWidth(text || '—', font) + cellPaddingX);
 }
 
+function measureTextColumnWidth(text: string, font: string, minWidth: number, cellPaddingX = BODY_CELL_PAD_X) {
+  return Math.max(
+    minWidth,
+    measureTextWidth(text || '—', font) + cellPaddingX + TEXT_COLUMN_FIT_SLACK
+  );
+}
+
 function measureBadgeCellWidth(text: string, minWidth: number) {
   return Math.max(minWidth, measureTextWidth(text, BADGE_FONT, 0.3) + BADGE_PAD_X + BODY_CELL_PAD_X);
 }
@@ -114,6 +131,24 @@ function measurePercentCellWidth(percent: number, minWidth: number) {
   const labelWidth = Math.max(PERCENT_LABEL_MIN_W, measureTextWidth(`${clampedPercent}%`, PERCENT_FONT));
   const contentWidth = Math.max(PERCENT_CONTENT_MIN_W, PERCENT_BAR_MIN_W + PERCENT_GAP_W + labelWidth);
   return Math.max(minWidth, contentWidth + BODY_CELL_PAD_X);
+}
+
+export async function waitForPresentMeasurementFonts() {
+  if (typeof document === 'undefined' || !('fonts' in document)) return;
+
+  const fontFaceSet = document.fonts;
+  const timeout = new Promise<void>((resolve) => {
+    setTimeout(resolve, FONT_LOAD_TIMEOUT_MS);
+  });
+
+  await Promise.race([
+    Promise.all(
+      PRESENT_FONT_LOAD_REQUESTS.map(([font, sample]) =>
+        fontFaceSet.load(font, sample).catch(() => undefined)
+      )
+    ).then(() => undefined),
+    timeout,
+  ]);
 }
 
 function getPresentColumnWidths(
@@ -167,7 +202,7 @@ function getPresentColumnWidths(
     statusWidth = Math.max(statusWidth, measureBadgeCellWidth(project.status, MIN_INFO_COL_WIDTHS.status));
     projectTaskCombinedWidth = Math.max(
       projectTaskCombinedWidth,
-      measureBodyCellWidth(project.name, PROJECT_NAME_FONT, indentWidth + MIN_INFO_COL_WIDTHS.task)
+      measureTextColumnWidth(project.name, PROJECT_NAME_FONT, indentWidth + MIN_INFO_COL_WIDTHS.task)
     );
     startWidth = Math.max(
       startWidth,
@@ -197,7 +232,7 @@ function getPresentColumnWidths(
     );
     deliverableWidth = Math.max(
       deliverableWidth,
-      measureBodyCellWidth(project.deliverable || '—', PROJECT_BODY_FONT, MIN_INFO_COL_WIDTHS.deliverable)
+      measureTextColumnWidth(project.deliverable || '—', PROJECT_BODY_FONT, MIN_INFO_COL_WIDTHS.deliverable)
     );
 
     for (const task of project.tasks) {
@@ -214,7 +249,7 @@ function getPresentColumnWidths(
 
       taskWidth = Math.max(
         taskWidth,
-        measureBodyCellWidth(task.name || '—', TASK_NAME_FONT, MIN_INFO_COL_WIDTHS.task, TASK_CELL_PAD_X)
+        measureTextColumnWidth(task.name || '—', TASK_NAME_FONT, MIN_INFO_COL_WIDTHS.task, TASK_CELL_PAD_X)
       );
       startWidth = Math.max(
         startWidth,
@@ -240,11 +275,11 @@ function getPresentColumnWidths(
       );
       ownerWidth = Math.max(
         ownerWidth,
-        measureBodyCellWidth(task.owner || '—', TASK_BODY_FONT, MIN_INFO_COL_WIDTHS.owner)
+        measureTextColumnWidth(task.owner || '—', TASK_BODY_FONT, MIN_INFO_COL_WIDTHS.owner)
       );
       deliverableWidth = Math.max(
         deliverableWidth,
-        measureBodyCellWidth(task.deliverable || '—', TASK_BODY_FONT, MIN_INFO_COL_WIDTHS.deliverable)
+        measureTextColumnWidth(task.deliverable || '—', TASK_BODY_FONT, MIN_INFO_COL_WIDTHS.deliverable)
       );
       percentWidth = Math.max(percentWidth, measurePercentCellWidth(task.percentComplete, MIN_INFO_COL_WIDTHS.percent));
     }

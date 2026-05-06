@@ -19,7 +19,7 @@ import { HolidaysSheet } from './holidays-sheet';
 import { SaveVersionDialog } from './save-version-dialog';
 import { VersionHistorySheet } from './version-history-sheet';
 import { parseImportJSON } from '@/features/io/import-json';
-import { generatePresentHTML } from '@/features/io/export-pdf';
+import { generatePresentHTML, waitForPresentMeasurementFonts } from '@/features/io/export-pdf';
 import { PresentOverlay } from './present-overlay';
 import { ReorderDialog } from './reorder-dialog';
 import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
@@ -131,9 +131,10 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
     }
   }
 
-  function handlePresent() {
+  async function handlePresent() {
     if (!timeline) return;
     try {
+      await waitForPresentMeasurementFonts();
       setPresentHtml(generatePresentHTML(timeline.title, timeline));
     } catch (err) {
       toast.error('Present failed: ' + (err as Error).message);
