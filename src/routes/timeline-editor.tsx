@@ -7,12 +7,15 @@ import { EditorHeader } from '@/features/timeline/editor-header';
 import { Toolbar } from '@/features/timeline/toolbar';
 import { TimelineTable } from '@/features/timeline/timeline-table';
 import { Button } from '@/components/ui/button';
+import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
 
 export default function TimelineEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { loading, notFound } = useTimeline(id);
   const saveStatus = useTimelineStore((s) => s.saveStatus);
+  const editorSession = useTimelineStore((s) => s.editorSession);
+  const adapter = editorSession ? getTimelineAdapter(editorSession) : null;
   const [freezeColumns, setFreezeColumns] = useState(false);
 
   useAutosave();
@@ -30,10 +33,21 @@ export default function TimelineEditor() {
       }
       if (mod && e.key === 's') {
         e.preventDefault();
-        const tl = useTimelineStore.getState().timeline;
-        if (tl) {
-          import('@/features/io/export-json').then(({ exportJSON }) => exportJSON(tl));
-        }
+        const state = useTimelineStore.getState();
+        if (!state.timeline || !state.editorSession) return;
+        const timeline = state.timeline;
+        const session = state.editorSession;
+
+        void (async () => {
+          state.setSaveStatus('saving');
+          try {
+            const nextSession = await saveTimelineForSession(timeline, session);
+            state.setEditorSession(nextSession);
+            state.setSaveStatus('saved');
+          } catch {
+            state.setSaveStatus('error');
+          }
+        })();
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -81,7 +95,7 @@ export default function TimelineEditor() {
         <span>·</span>
         <span><kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⌘Z</kbd> Undo</span>
         <span>·</span>
-        <span><kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⌘S</kbd> Save JSON</span>
+        <span><kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⌘S</kbd> {adapter?.saveActionLabel ?? 'Save'}</span>
       </footer>
     </div>
   );

@@ -22,8 +22,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { getTimelineAdapter } from '@/lib/timeline-adapters';
 import { useTimelineStore } from '@/store/timeline-store';
-import { versionsRepo } from '@/lib/db/versions';
 import type { TimelineVersion } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -33,8 +33,11 @@ interface Props {
 }
 
 export function VersionHistorySheet({ open, onOpenChange }: Props) {
-  const timelineId = useTimelineStore((s) => s.timeline?.id);
+  const timeline = useTimelineStore((s) => s.timeline);
+  const editorSession = useTimelineStore((s) => s.editorSession);
   const restoreVersion = useTimelineStore((s) => s.restoreVersion);
+  const renameVersion = useTimelineStore((s) => s.renameVersion);
+  const deleteVersion = useTimelineStore((s) => s.deleteVersion);
   const [versions, setVersions] = useState<TimelineVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -44,15 +47,19 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
   const [backupFirst, setBackupFirst] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!timelineId) return;
+    if (!timeline || !editorSession) return;
+
     setLoading(true);
     try {
-      const list = await versionsRepo.list(timelineId);
+      const list = await getTimelineAdapter(editorSession).listVersions({
+        timeline,
+        session: editorSession,
+      });
       setVersions(list);
     } finally {
       setLoading(false);
     }
-  }, [timelineId]);
+  }, [editorSession, timeline]);
 
   useEffect(() => {
     if (open) {
@@ -65,7 +72,7 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
   async function handleRename(id: string) {
     const trimmed = renameVal.trim();
     if (trimmed) {
-      await versionsRepo.rename(id, trimmed);
+      await renameVersion(id, trimmed);
       await refresh();
     }
     setRenamingId(null);
@@ -73,7 +80,7 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    await versionsRepo.remove(deleteTarget.id);
+    await deleteVersion(deleteTarget.id);
     setDeleteTarget(null);
     await refresh();
     toast.success('Version deleted');
@@ -184,7 +191,7 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
                 </p>
 
                 {v.note && (
-                  <p className="text-xs text-muted-foreground/90 mt-1.5 whitespace-pre-wrap break-words">
+                  <p className="text-xs text-muted-foreground/90 mt-1.5 whitespace-pre-wrap wrap-break-word">
                     {v.note}
                   </p>
                 )}

@@ -1,17 +1,19 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { produce } from 'immer';
+import { getTimelineAdapter } from '@/lib/timeline-adapters';
 import type { Timeline, TimelineMeta, Project, Task } from '@/lib/types';
 import { newId } from '@/lib/id';
-import { versionsRepo } from '@/lib/db/versions';
-import { timelineRepo } from '@/lib/db/timelines';
+import type { EditorSession } from '@/lib/timeline-file';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface TimelineStore {
   timeline: Timeline | null;
+  editorSession: EditorSession | null;
   saveStatus: SaveStatus;
   setTimeline: (tl: Timeline | null) => void;
+  setEditorSession: (session: EditorSession | null) => void;
   setSaveStatus: (s: SaveStatus) => void;
   setMeta: (patch: Partial<TimelineMeta>) => void;
   addProject: () => void;
@@ -23,6 +25,8 @@ interface TimelineStore {
   moveProject: (fromIdx: number, toIdx: number) => void;
   moveTask: (fromProjectId: string, fromIdx: number, toProjectId: string, toIdx: number) => void;
   toggleHoliday: (date: string) => void;
+  renameVersion: (versionId: string, name: string) => Promise<void>;
+  deleteVersion: (versionId: string) => Promise<void>;
   saveVersion: (name: string, note?: string) => Promise<void>;
   restoreVersion: (versionId: string, backupCurrent?: boolean) => Promise<void>;
 }
@@ -31,9 +35,11 @@ export const useTimelineStore = create<TimelineStore>()(
   temporal(
     (set) => ({
       timeline: null,
+      editorSession: null,
       saveStatus: 'idle',
 
       setTimeline: (tl) => set({ timeline: tl }),
+      setEditorSession: (session) => set({ editorSession: session }),
       setSaveStatus: (s) => set({ saveStatus: s }),
 
       setMeta: (patch) =>
@@ -169,21 +175,60 @@ export const useTimelineStore = create<TimelineStore>()(
           })
         ),
 
+      renameVersion: async (versionId, name) => {
+        const state = useTimelineStore.getState();
+        if (!state.timeline || !state.editorSession || !name.trim()) return;
+
+        const session = await getTimelineAdapter(state.editorSession).renameVersion(
+          { timeline: state.timeline, session: state.editorSession },
+          versionId,
+          name
+        );
+
+        set({ editorSession: session, saveStatus: 'idle' });
+      },
+
+      deleteVersion: async (versionId) => {
+        const state = useTimelineStore.getState();
+        if (!state.timeline || !state.editorSession) return;
+
+        const session = await getTimelineAdapter(state.editorSession).deleteVersion(
+          { timeline: state.timeline, session: state.editorSession },
+          versionId
+        );
+
+        set({ editorSession: session, saveStatus: 'idle' });
+      },
+
       saveVersion: async (name, note) => {
-        const tl = useTimelineStore.getState().timeline;
-        if (!tl) return;
-        await versionsRepo.create(tl.id, name, note);
+        const state = useTimelineStore.getState();
+        if (!state.timeline || !state.editorSession) return;
+
+        const session = await getTimelineAdapter(state.editorSession).saveVersion(
+          { timeline: state.timeline, session: state.editorSession },
+          name,
+          note
+        );
+
+        set({ editorSession: session, saveStatus: 'idle' });
       },
 
       restoreVersion: async (versionId, backupCurrent = true) => {
-        const tl = useTimelineStore.getState().timeline;
-        if (!tl) return;
-        await versionsRepo.restore(versionId, { backupCurrent });
-        const refreshed = await timelineRepo.get(tl.id);
-        if (refreshed) {
-          set({ timeline: refreshed });
-          useTimelineStore.temporal.getState().clear();
-        }
+        const state = useTimelineStore.getState();
+        if (!state.timeline || !state.editorSession) return;
+
+        const restored = await getTimelineAdapter(state.editorSession).restoreVersion(
+          { timeline: state.timeline, session: state.editorSession },
+          versionId,
+          backupCurrent
+        );
+
+        set({
+          timeline: restored.timeline,
+          editorSession: restored.session,
+          saveStatus: 'idle',
+        });
+        useTimelineStore.temporal.getState().clear();
       },
     }),
     {

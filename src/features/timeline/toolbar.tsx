@@ -18,11 +18,11 @@ import { Separator } from '@/components/ui/separator';
 import { HolidaysSheet } from './holidays-sheet';
 import { SaveVersionDialog } from './save-version-dialog';
 import { VersionHistorySheet } from './version-history-sheet';
-import { exportJSON } from '@/features/io/export-json';
 import { parseImportJSON } from '@/features/io/import-json';
 import { generatePresentHTML } from '@/features/io/export-pdf';
 import { PresentOverlay } from './present-overlay';
 import { ReorderDialog } from './reorder-dialog';
+import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
 import { timelineRepo } from '@/lib/db/timelines';
 import type { ParsedTimelineImport } from '@/lib/types';
 import { toast } from 'sonner';
@@ -35,7 +35,9 @@ interface ToolbarProps {
 export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   const addProject = useTimelineStore((s) => s.addProject);
   const timeline = useTimelineStore((s) => s.timeline);
+  const editorSession = useTimelineStore((s) => s.editorSession);
   const setTimeline = useTimelineStore((s) => s.setTimeline);
+  const setSaveStatus = useTimelineStore((s) => s.setSaveStatus);
   const [holidaysOpen, setHolidaysOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
   const [saveVersionOpen, setSaveVersionOpen] = useState(false);
@@ -52,6 +54,8 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   );
   const canUndo = pastStates.length > 0;
   const canRedo = futureStates.length > 0;
+  const adapter = editorSession ? getTimelineAdapter(editorSession) : null;
+  const directEdit = editorSession?.mode === 'file';
 
   function scrollToToday() {
     const el = document.querySelector('[data-today-col]') as HTMLElement | null;
@@ -59,10 +63,14 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   }
 
   async function handleSaveJSON() {
-    if (!timeline) return;
+    if (!timeline || !editorSession) return;
     try {
-      await exportJSON(timeline);
+      setSaveStatus('saving');
+      const session = await saveTimelineForSession(timeline, editorSession);
+      useTimelineStore.getState().setEditorSession(session);
+      setSaveStatus('saved');
     } catch (err) {
+      setSaveStatus('error');
       toast.error('Save JSON failed: ' + (err as Error).message);
     }
   }
@@ -219,9 +227,16 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
         <Separator orientation="vertical" className="h-5" />
 
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5" onClick={handleSaveJSON}>
-          <Download className="h-3.5 w-3.5" /> Save JSON
+          <Download className="h-3.5 w-3.5" /> {adapter?.saveActionLabel ?? 'Save'}
         </Button>
-        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5" onClick={() => fileInputRef.current?.click()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1.5"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={directEdit}
+          title={directEdit ? 'Open another file from the dashboard to stay in direct edit mode' : undefined}
+        >
           <Upload className="h-3.5 w-3.5" /> Load JSON
         </Button>
         <Button

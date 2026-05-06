@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { FolderOpen, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { timelineRepo } from '@/lib/db/timelines';
 import { seedDemoDataIfEmpty } from '@/lib/db/seed';
 import type { TimelineMeta } from '@/lib/types';
@@ -10,6 +11,8 @@ import { TermsPrivacyModal } from '@/components/terms-privacy-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { pickTimelineFileForDirectEdit, supportsFileSystemAccess } from '@/lib/timeline-file';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -21,12 +24,16 @@ import {
 type SortKey = 'updatedAt' | 'createdAt' | 'title';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [timelines, setTimelines] = useState<TimelineMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('updatedAt');
   const [newOpen, setNewOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
+
+  const canDirectEdit = supportsFileSystemAccess();
 
   async function load() {
     setLoading(true);
@@ -34,6 +41,22 @@ export default function Dashboard() {
     const list = await timelineRepo.list();
     setTimelines(list);
     setLoading(false);
+  }
+
+  async function handleOpenJSON() {
+    if (!canDirectEdit || openingFile) return;
+
+    setOpeningFile(true);
+    try {
+      const directEdit = await pickTimelineFileForDirectEdit();
+      navigate('/timeline/direct', { state: { directEdit } });
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        toast.error('Open JSON failed: ' + (err as Error).message);
+      }
+    } finally {
+      setOpeningFile(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -66,6 +89,17 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleOpenJSON}
+            disabled={!canDirectEdit || openingFile}
+            className="gap-1.5"
+            title={canDirectEdit ? 'Open a JSON file for direct editing' : 'Direct file editing is not supported in this browser'}
+          >
+            <FolderOpen className="h-4 w-4" />
+            Open JSON
+          </Button>
           <Button size="sm" onClick={() => setNewOpen(true)} className="gap-1.5">
             + New Timeline
           </Button>
@@ -121,7 +155,7 @@ export default function Dashboard() {
       <footer className="border-t border-border px-6 py-4 shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            Your data stays in your browser. No account needed.
+            Your data stays local on your device. No account needed.
           </p>
           <button
             onClick={() => setTermsOpen(true)}
