@@ -488,7 +488,7 @@ ${PRESENT_FONT_LINKS}
   html, body { width: 100%; min-height: 100%; }
   body { font-family: ${SANS_FAMILY}; background: #fff; color: #0f172a; overflow: auto; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  #content { width: var(--table-fit-width); min-height: 100vh; padding: 14px ${CONTENT_PAD}px; background: #fff; }
+  #content { width: var(--table-fit-width); padding: 14px ${CONTENT_PAD}px; background: #fff; }
 </style>
 <script>
 window.__capture = function() {

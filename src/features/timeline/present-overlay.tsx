@@ -106,12 +106,8 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
   const stageHeight = activeLayout
     ? Math.max(Math.ceil(scaledHeight + PREVIEW_FRAME_PADDING * 2), activeLayout.viewportHeight)
     : null;
-  const frameLeft = activeLayout && stageWidth
-    ? Math.max(Math.round((stageWidth - scaledWidth) / 2), PREVIEW_FRAME_PADDING)
-    : PREVIEW_FRAME_PADDING;
-  const frameTop = activeLayout && stageHeight
-    ? Math.max(Math.round((stageHeight - scaledHeight) / 2), PREVIEW_FRAME_PADDING)
-    : PREVIEW_FRAME_PADDING;
+  const frameLeft = PREVIEW_FRAME_PADDING;
+  const frameTop = PREVIEW_FRAME_PADDING;
   const canPan = Boolean(
     activeLayout && stageWidth && stageHeight &&
     (stageWidth > activeLayout.viewportWidth || stageHeight > activeLayout.viewportHeight)
@@ -144,7 +140,7 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
     const viewportHeight = viewport.clientHeight;
     const availableWidth = Math.max(viewportWidth - PREVIEW_FRAME_PADDING * 2, 1);
     const availableHeight = Math.max(viewportHeight - PREVIEW_FRAME_PADDING * 2, 1);
-    const fitScale = Math.min(availableWidth / width, availableHeight / height, 1);
+    const fitScale = Math.max(availableWidth / width, availableHeight / height);
 
     setPreviewLayout((current) => {
       if (
@@ -354,8 +350,8 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
 
     const maxScrollLeft = Math.max(stageWidth - activeLayout.viewportWidth, 0);
     const maxScrollTop = Math.max(stageHeight - activeLayout.viewportHeight, 0);
-    const targetScrollLeft = Math.max((stageWidth - activeLayout.viewportWidth) / 2, 0);
-    const targetScrollTop = Math.max((stageHeight - activeLayout.viewportHeight) / 2, 0);
+    const targetScrollLeft = 0;
+    const targetScrollTop = 0;
 
     viewport.scrollLeft = clamp(targetScrollLeft, 0, maxScrollLeft);
     viewport.scrollTop = clamp(targetScrollTop, 0, maxScrollTop);
