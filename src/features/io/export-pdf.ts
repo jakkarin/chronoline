@@ -13,6 +13,7 @@ const MIN_INFO_COL_WIDTHS = {
   start: 64,
   end: 64,
   days: 34,
+  owner: 96,
   deliverable: 96,
   percent: 84,
 } as const;
@@ -59,6 +60,7 @@ interface PresentColumnWidths {
   start: number;
   end: number;
   days: number;
+  owner: number;
   deliverable: number;
   percent: number;
   day: number;
@@ -124,6 +126,7 @@ function getPresentColumnWidths(
   let startWidth = measureHeaderCellWidth('START', MIN_INFO_COL_WIDTHS.start, START_END_CELL_PAD_X);
   let endWidth = measureHeaderCellWidth('END', MIN_INFO_COL_WIDTHS.end, START_END_CELL_PAD_X);
   let daysWidth = measureHeaderCellWidth('DAYS', MIN_INFO_COL_WIDTHS.days);
+  let ownerWidth = measureHeaderCellWidth('OWNER', MIN_INFO_COL_WIDTHS.owner);
   let deliverableWidth = measureHeaderCellWidth('DELIVERABLE', MIN_INFO_COL_WIDTHS.deliverable);
   let percentWidth = Math.max(
     measureHeaderCellWidth('%', MIN_INFO_COL_WIDTHS.percent),
@@ -182,6 +185,10 @@ function getPresentColumnWidths(
       daysWidth,
       measureBodyCellWidth(String(projectDays || '—'), PROJECT_BODY_FONT, MIN_INFO_COL_WIDTHS.days)
     );
+    ownerWidth = Math.max(
+      ownerWidth,
+      measureBodyCellWidth('—', PROJECT_BODY_FONT, MIN_INFO_COL_WIDTHS.owner)
+    );
     deliverableWidth = Math.max(
       deliverableWidth,
       measureBodyCellWidth(project.deliverable || '—', PROJECT_BODY_FONT, MIN_INFO_COL_WIDTHS.deliverable)
@@ -225,6 +232,10 @@ function getPresentColumnWidths(
         daysWidth,
         measureBodyCellWidth(String(taskDays || '—'), TASK_BODY_FONT, MIN_INFO_COL_WIDTHS.days)
       );
+      ownerWidth = Math.max(
+        ownerWidth,
+        measureBodyCellWidth(task.owner || '—', TASK_BODY_FONT, MIN_INFO_COL_WIDTHS.owner)
+      );
       deliverableWidth = Math.max(
         deliverableWidth,
         measureBodyCellWidth(task.deliverable || '—', TASK_BODY_FONT, MIN_INFO_COL_WIDTHS.deliverable)
@@ -241,6 +252,7 @@ function getPresentColumnWidths(
   startWidth = Math.ceil(startWidth);
   endWidth = Math.ceil(endWidth);
   daysWidth = Math.ceil(daysWidth);
+  ownerWidth = Math.ceil(ownerWidth);
   deliverableWidth = Math.ceil(deliverableWidth);
   percentWidth = Math.ceil(percentWidth);
   dayWidth = Math.ceil(dayWidth);
@@ -253,6 +265,7 @@ function getPresentColumnWidths(
     start: startWidth,
     end: endWidth,
     days: daysWidth,
+    owner: ownerWidth,
     deliverable: deliverableWidth,
     percent: percentWidth,
     day: dayWidth,
@@ -264,6 +277,7 @@ function getPresentColumnWidths(
       startWidth +
       endWidth +
       daysWidth +
+      ownerWidth +
       deliverableWidth +
       percentWidth +
       cols.length * dayWidth,
@@ -397,6 +411,7 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
       ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, pS ? format(parseISO(pS),'dd/MM/yy') : '—')}
       ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, pE ? format(parseISO(pE),'dd/MM/yy') : '—')}
       ${TD(`${CELL_STYLE(rowBg, true)}text-align:center;font-size:12px;`, String(pDays || '—'))}
+      ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;color:#475569;`, '—')}
       ${TD(`${CELL_STYLE(rowBg, true)}font-size:12px;color:#475569;`, project.deliverable || '—')}
       ${TD(`${CELL_STYLE(rowBg, true)}`, '—')}
       ${ganttCells(pS, pE, cols, timeline.holidays, projColor, true, '', columnWidths.day)}
@@ -415,6 +430,7 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
         ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, task.startDate ? format(parseISO(task.startDate),'dd/MM/yy') : '—')}
         ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;font-family:'Ubuntu Mono',monospace;white-space:nowrap;padding:4px 10px;`, task.endDate ? format(parseISO(task.endDate),'dd/MM/yy') : '—')}
         ${TD(`${CELL_STYLE('#fff', false)}text-align:center;font-size:12px;`, String(days || '—'))}
+        ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;color:#64748b;`, task.owner || '—')}
         ${TD(`${CELL_STYLE('#fff', false)}font-size:12px;color:#64748b;`, task.deliverable || '—')}
         ${TD(`${CELL_STYLE('#fff', false)}`, pctCell(task.percentComplete, taskBarColor))}
         ${ganttCells(task.startDate, task.endDate, cols, timeline.holidays, taskBarColor, false, task.name, columnWidths.day)}
@@ -455,6 +471,7 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
     --col-start-width: ${columnWidths.start}px;
     --col-end-width: ${columnWidths.end}px;
     --col-days-width: ${columnWidths.days}px;
+    --col-owner-width: ${columnWidths.owner}px;
     --col-deliverable-width: ${columnWidths.deliverable}px;
     --col-percent-width: ${columnWidths.percent}px;
     --day-col-width: ${columnWidths.day}px;
@@ -507,6 +524,7 @@ window.__capture = function() {
     <col style="width:var(--col-start-width)">
     <col style="width:var(--col-end-width)">
     <col style="width:var(--col-days-width)">
+    <col style="width:var(--col-owner-width)">
     <col style="width:var(--col-deliverable-width)">
     <col style="width:var(--col-percent-width)">
     ${cols.map(() => `<col style="width:var(--day-col-width, ${CELL_W}px)">`).join('')}
@@ -519,6 +537,7 @@ window.__capture = function() {
       ${TH(`${INFO_TH}padding:5px 14px;`, 'START', 'rowspan="2"')}
       ${TH(`${INFO_TH}padding:5px 14px;`, 'END', 'rowspan="2"')}
       ${TH(`${INFO_TH}text-align:center;`, 'DAYS', 'rowspan="2"')}
+      ${TH(INFO_TH, 'OWNER', 'rowspan="2"')}
       ${TH(INFO_TH, 'DELIVERABLE', 'rowspan="2"')}
       ${TH(`${INFO_TH}text-align:center;`, '%', 'rowspan="2"')}
       ${weekHeaderCells}
