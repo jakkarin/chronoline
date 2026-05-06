@@ -328,12 +328,12 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
 
       {project.expanded && (
         <tr data-add-task-row>
-          <td colSpan={totalCols} className="border-b border-border p-0">
+          <td colSpan={totalCols} className="pointer-events-none border-b border-dashed border-border px-9 py-1.5">
             <button
               onClick={() => addTask(project.id)}
-              className="w-full text-left text-[11px] text-muted-foreground hover:bg-muted/50 px-9 py-1.5 border-b border-dashed border-border transition-colors"
+              className="pointer-events-auto inline-flex items-center gap-1 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
             >
-              <Plus className="inline h-3 w-3 mr-1" />
+              <Plus className="h-3 w-3" />
               Add task to &ldquo;{project.name}&rdquo;
             </button>
           </td>
