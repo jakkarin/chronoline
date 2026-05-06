@@ -59,7 +59,7 @@ npm run lint
 Run type-checking:
 
 ```bash
-npx tsc --noEmit --ignoreDeprecations 6.0
+npx tsc --noEmit
 ```
 
 Create a production build:

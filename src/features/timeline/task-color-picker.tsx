@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { isHexTaskColor, TASK_COLOR_OPTIONS, resolveTaskBarColor } from '@/lib/task-colors';
 import type { Priority, TaskColor } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface TaskColorPickerProps {
   value: TaskColor | null | undefined;
@@ -11,11 +13,17 @@ interface TaskColorPickerProps {
 }
 
 export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerProps) {
+  const [open, setOpen] = useState(false);
   const displayColor = resolveTaskBarColor(value, priority);
   const pickerColor = isHexTaskColor(value) ? value : displayColor;
 
+  function handleSelect(nextValue: TaskColor | null) {
+    onChange(nextValue);
+    setOpen(false);
+  }
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background hover:bg-accent transition-colors"
         aria-label={value ? `Task color: ${value}` : 'Task color: auto'}
@@ -27,8 +35,11 @@ export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerPr
       </PopoverTrigger>
       <PopoverContent className="w-44 p-2" align="start">
         <button
-          className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
-          onClick={() => onChange(null)}
+          className={cn(
+            'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors',
+            !value ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/70'
+          )}
+          onClick={() => handleSelect(null)}
         >
           <span className="flex items-center gap-2">
             <span
@@ -51,7 +62,7 @@ export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerPr
                   'relative flex h-9 items-center justify-center rounded-md border transition-colors',
                   selected ? 'border-foreground bg-accent' : 'border-border hover:bg-accent',
                 ].join(' ')}
-                onClick={() => onChange(option.value)}
+                onClick={() => handleSelect(option.value)}
                 aria-label={`Set task color to ${option.label}`}
                 title={option.label}
               >

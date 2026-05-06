@@ -107,8 +107,8 @@ IndexedDB uses **three tables** (`timelineMeta`, `timelineData`, `timelineVersio
 # Start dev server
 npm run dev
 
-# Type-check (TS 6 currently needs deprecation opt-in)
-npx tsc --noEmit --ignoreDeprecations 6.0
+# Type-check
+npx tsc --noEmit
 
 # Lint
 npm run lint

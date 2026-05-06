@@ -1,5 +1,8 @@
+import { useState } from 'react';
+import { Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { Priority } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 const PRIORITY_OPTIONS: { value: Priority; label: string; color: string }[] = [
   { value: 'HIGHEST', label: 'HIGHEST', color: '#dc2626' },
@@ -25,10 +28,16 @@ interface Props {
 }
 
 export function PriorityPicker({ value, onChange }: Props) {
+  const [open, setOpen] = useState(false);
   const opt = PRIORITY_OPTIONS.find((o) => o.value === value) ?? PRIORITY_OPTIONS[PRIORITY_OPTIONS.length - 1];
 
+  function handleSelect(nextValue: Priority) {
+    onChange(nextValue);
+    setOpen(false);
+  }
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-white cursor-pointer hover:opacity-80 transition-opacity min-w-11 justify-center"
         style={{ background: opt.color }}
@@ -40,8 +49,11 @@ export function PriorityPicker({ value, onChange }: Props) {
         {PRIORITY_OPTIONS.map((o) => (
           <button
             key={String(o.value)}
-            className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors text-left"
-            onClick={() => onChange(o.value)}
+            className={cn(
+              'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors',
+              o.value === value ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/70'
+            )}
+            onClick={() => handleSelect(o.value)}
           >
             <span
               className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white"
@@ -49,6 +61,7 @@ export function PriorityPicker({ value, onChange }: Props) {
             >
               {o.label}
             </span>
+            {o.value === value && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
           </button>
         ))}
       </PopoverContent>
