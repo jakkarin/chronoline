@@ -55,11 +55,12 @@ export function TermsPrivacyModal({
               <h3 className="font-semibold text-base mb-2">Privacy First</h3>
               <p className="text-muted-foreground leading-relaxed">
                 <strong className="text-foreground">
-                  Your data never leaves your browser.
+                  Your data stays local on your device.
                 </strong>{' '}
-                All your timeline data is stored locally in your browser using
-                IndexedDB. We do not collect, transmit, or store any of your
-                data on our servers.
+                Chronoline stores timeline data either in your browser using
+                IndexedDB or in JSON files you choose to open with direct edit
+                mode. We do not collect, transmit, or store any of your data on
+                our servers.
               </p>
             </section>
 
@@ -68,13 +69,18 @@ export function TermsPrivacyModal({
             <section>
               <h3 className="font-semibold text-base mb-2">Data Storage</h3>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>All data is stored locally in your browser</li>
+                <li>All data is stored locally on your device</li>
                 <li>No account or login required</li>
                 <li>No data is sent to any external servers</li>
-                <li>You can export your data anytime</li>
+                <li>You can save or export your data as JSON anytime</li>
                 <li>
-                  Clearing browser data will remove all your timelines (please
-                  backup regularly)
+                  Clearing browser data will remove timelines stored in
+                  IndexedDB, but JSON files saved to disk remain where you
+                  stored them
+                </li>
+                <li>
+                  Direct edit mode only reads and writes the specific JSON file
+                  you choose
                 </li>
               </ul>
             </section>

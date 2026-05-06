@@ -155,7 +155,7 @@ export default function Dashboard() {
       <footer className="border-t border-border px-6 py-4 shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            Your data stays in your browser. No account needed.
+            Your data stays local on your device. No account needed.
           </p>
           <button
             onClick={() => setTermsOpen(true)}
