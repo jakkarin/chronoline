@@ -20,6 +20,8 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
   const [copying, setCopying] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loadedHtml, setLoadedHtml] = useState<string | null>(null);
+  const frameLoaded = loadedHtml === html;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -33,42 +35,49 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
 
   /** Trigger __capture() inside the iframe, wait for postMessage with dataURL */
   const captureFromIframe = useCallback((): Promise<Blob> => {
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const iframe = iframeRef.current;
       if (!iframe) return reject(new Error('iframe not mounted'));
-
-      // Poll until __capture function is available (iframe + html2canvas CDN loaded)
-      const deadline = Date.now() + 15000;
-      while (Date.now() < deadline) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((iframe.contentWindow as any)?.__capture) break;
-        await sleep(200);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (!(iframe.contentWindow as any)?.__capture) {
-        return reject(new Error('html2canvas did not load in iframe'));
-      }
-
-      const timer = setTimeout(() => {
-        window.removeEventListener('message', handler);
-        reject(new Error('Capture timeout'));
-      }, 30000);
+      let timer: ReturnType<typeof setTimeout> | null = null;
 
       const handler = (e: MessageEvent) => {
         if (e.source !== iframe.contentWindow) return;
         if (e.data?.type === 'CAPTURE_DONE') {
-          clearTimeout(timer);
+          if (timer) clearTimeout(timer);
           window.removeEventListener('message', handler);
           resolve(dataUrlToBlob(e.data.dataUrl));
         } else if (e.data?.type === 'CAPTURE_ERROR') {
-          clearTimeout(timer);
+          if (timer) clearTimeout(timer);
           window.removeEventListener('message', handler);
           reject(new Error(e.data.message));
         }
       };
-      window.addEventListener('message', handler);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (iframe.contentWindow as any).__capture();
+
+      const runCapture = async () => {
+        // Poll until __capture function is available (iframe + html2canvas CDN loaded)
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((iframe.contentWindow as any)?.__capture) break;
+          await sleep(200);
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (!(iframe.contentWindow as any)?.__capture) {
+          reject(new Error('html2canvas did not load in iframe'));
+          return;
+        }
+
+        timer = setTimeout(() => {
+          window.removeEventListener('message', handler);
+          reject(new Error('Capture timeout'));
+        }, 30000);
+
+        window.addEventListener('message', handler);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (iframe.contentWindow as any).__capture();
+      };
+
+      void runCapture();
     });
   }, []);
 
@@ -122,12 +131,41 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
       </div>
 
       {/* Preview — full HTML in isolated iframe, no app CSS leaking in */}
-      <iframe
-        ref={iframeRef}
-        srcDoc={html}
-        style={{ flex: 1, border: 'none', width: '100%', background: '#fff' }}
-        title="Present Preview"
-      />
+      <div style={{ position: 'relative', flex: 1, background: '#fff' }}>
+        {!frameLoaded && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#fff',
+              color: '#64748b',
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: 0.2,
+            }}
+          >
+            Preparing present view…
+          </div>
+        )}
+        <iframe
+          key={html}
+          ref={iframeRef}
+          srcDoc={html}
+          onLoad={() => setLoadedHtml(html)}
+          style={{
+            flex: 1,
+            border: 'none',
+            width: '100%',
+            height: '100%',
+            background: '#fff',
+            opacity: frameLoaded ? 1 : 0,
+          }}
+          title="Present Preview"
+        />
+      </div>
     </div>
   );
 }
