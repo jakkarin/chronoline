@@ -6,6 +6,14 @@ import {
 import { useStore } from 'zustand';
 import { useTimelineStore } from '@/store/timeline-store';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { HolidaysSheet } from './holidays-sheet';
 import { SaveVersionDialog } from './save-version-dialog';
@@ -16,6 +24,7 @@ import { generatePresentHTML } from '@/features/io/export-pdf';
 import { PresentOverlay } from './present-overlay';
 import { ReorderDialog } from './reorder-dialog';
 import { timelineRepo } from '@/lib/db/timelines';
+import type { ParsedTimelineImport } from '@/lib/types';
 import { toast } from 'sonner';
 
 interface ToolbarProps {
@@ -32,6 +41,9 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   const [saveVersionOpen, setSaveVersionOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [presentHtml, setPresentHtml] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<ParsedTimelineImport | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { undo, redo, pastStates, futureStates } = useStore(
@@ -48,7 +60,11 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
 
   async function handleSaveJSON() {
     if (!timeline) return;
-    exportJSON(timeline);
+    try {
+      await exportJSON(timeline);
+    } catch (err) {
+      toast.error('Save JSON failed: ' + (err as Error).message);
+    }
   }
 
   async function handleLoadJSON(e: React.ChangeEvent<HTMLInputElement>) {
@@ -57,21 +73,54 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
     const raw = await file.text();
     try {
       const parsed = parseImportJSON(raw);
-      const choice = window.confirm(
-        'Replace current timeline?\n\nOK = Replace current\nCancel = Import as new timeline'
-      );
-      if (choice) {
-        await timelineRepo.update(timeline.id, { ...parsed, id: timeline.id });
-        const updated = await timelineRepo.get(timeline.id);
-        if (updated) setTimeline(updated);
-      } else {
-        await timelineRepo.create(parsed);
-        toast.success('Imported as new timeline');
-      }
+      setPendingImport(parsed);
+      setImportDialogOpen(true);
     } catch (err) {
       toast.error('Import failed: ' + (err as Error).message);
+      setPendingImport(null);
     }
     e.target.value = '';
+  }
+
+  function closeImportDialog() {
+    if (importing) return;
+    setImportDialogOpen(false);
+    setPendingImport(null);
+  }
+
+  async function handleReplaceImport() {
+    if (!timeline || !pendingImport) return;
+
+    setImporting(true);
+    try {
+      await timelineRepo.replaceFromImport(timeline.id, pendingImport.timeline, pendingImport.versions);
+      const updated = await timelineRepo.get(timeline.id);
+      if (updated) {
+        setTimeline(updated);
+        useTimelineStore.temporal.getState().clear();
+      }
+      toast.success(`Replaced timeline${pendingImport.versions.length > 0 ? ' and save history' : ''}`);
+      closeImportDialog();
+    } catch (err) {
+      toast.error('Import failed: ' + (err as Error).message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function handleImportAsNew() {
+    if (!pendingImport) return;
+
+    setImporting(true);
+    try {
+      await timelineRepo.createFromImport(pendingImport.timeline, pendingImport.versions);
+      toast.success(`Imported as new timeline${pendingImport.versions.length > 0 ? ' with save history' : ''}`);
+      closeImportDialog();
+    } catch (err) {
+      toast.error('Import failed: ' + (err as Error).message);
+    } finally {
+      setImporting(false);
+    }
   }
 
   function handlePresent() {
@@ -198,6 +247,35 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
       {reorderOpen && <ReorderDialog open={reorderOpen} onOpenChange={setReorderOpen} />}
       <SaveVersionDialog open={saveVersionOpen} onOpenChange={setSaveVersionOpen} />
       <VersionHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
+      <Dialog open={importDialogOpen} onOpenChange={(open) => !open && closeImportDialog()}>
+        <DialogContent showCloseButton={!importing} className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import JSON</DialogTitle>
+            <DialogDescription>
+              Choose how to load this timeline.
+              {pendingImport && (
+                <>
+                  {' '}
+                  This file includes {pendingImport.versions.length} saved {pendingImport.versions.length === 1 ? 'version' : 'versions'}.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-col">
+            <Button variant="outline" onClick={closeImportDialog} disabled={importing} className="w-full">
+              Cancel
+            </Button>
+            <div className="grid w-full gap-2 sm:grid-cols-2">
+              <Button variant="outline" onClick={handleImportAsNew} disabled={!pendingImport || importing} className="w-full">
+                Import as New Timeline
+              </Button>
+              <Button onClick={handleReplaceImport} disabled={!pendingImport || importing} className="w-full">
+                Replace Current
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {presentHtml && <PresentOverlay html={presentHtml} title={timeline?.title ?? ''} onClose={() => setPresentHtml(null)} />}
     </>
   );

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { HEX_TASK_COLOR_PATTERN, TASK_COLOR_VALUES } from '@/lib/task-colors';
-import type { Timeline } from '@/lib/types';
+import type { ParsedTimelineImport } from '@/lib/types';
 
 const TaskSchema = z.object({
   id: z.string(),
@@ -39,20 +39,49 @@ const TimelineSchema = z.object({
   holidays: z.array(z.string()).optional(),
 });
 
+const TimelineVersionSnapshotSchema = z.object({
+  projects: z.array(ProjectSchema),
+  holidays: z.array(z.string()).optional(),
+});
+
+const TimelineVersionSchema = z.object({
+  id: z.string(),
+  timelineId: z.string(),
+  name: z.string(),
+  note: z.string().optional(),
+  createdAt: z.number(),
+  schemaVersion: z.number(),
+  snapshot: TimelineVersionSnapshotSchema,
+  stats: z.object({
+    projectCount: z.number(),
+    taskCount: z.number(),
+  }),
+});
+
 const EnvelopeSchema = z.object({
   $schema: z.literal('project-timeline/v1'),
   exportedAt: z.string(),
   timeline: TimelineSchema,
+  versions: z.array(TimelineVersionSchema).optional(),
 });
 
-export function parseImportJSON(raw: string): Timeline {
+export function parseImportJSON(raw: string): ParsedTimelineImport {
   const parsed = JSON.parse(raw);
   const result = EnvelopeSchema.safeParse(parsed);
   if (!result.success) {
     throw new Error('Invalid file format: ' + result.error.issues[0]?.message);
   }
   return {
-    ...result.data.timeline,
-    holidays: result.data.timeline.holidays ?? [],
-  } as Timeline;
+    timeline: {
+      ...result.data.timeline,
+      holidays: result.data.timeline.holidays ?? [],
+    },
+    versions: (result.data.versions ?? []).map((version) => ({
+      ...version,
+      snapshot: {
+        ...version.snapshot,
+        holidays: version.snapshot.holidays ?? [],
+      },
+    })),
+  };
 }

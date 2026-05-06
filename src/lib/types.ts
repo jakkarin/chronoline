@@ -56,6 +56,12 @@ export interface TimelineExport {
   $schema: 'project-timeline/v1';
   exportedAt: string;
   timeline: Timeline;
+  versions?: TimelineVersion[];
+}
+
+export interface ParsedTimelineImport {
+  timeline: Timeline;
+  versions: TimelineVersion[];
 }
 
 export interface TimelineVersionSnapshot {

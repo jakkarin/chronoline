@@ -1,6 +1,7 @@
 import { db } from './schema';
 import { versionsRepo } from './versions';
-import type { Timeline, TimelineMeta, TimelineData, Project } from '@/lib/types';
+import { VERSION_SCHEMA_VERSION } from './schema';
+import type { Timeline, TimelineMeta, TimelineData, Project, TimelineVersion } from '@/lib/types';
 import { newId } from '@/lib/id';
 
 function derivedCounts(projects: Project[]) {
@@ -8,6 +9,28 @@ function derivedCounts(projects: Project[]) {
     projectCount: projects.length,
     taskCount: projects.reduce((s, p) => s + p.tasks.length, 0),
   };
+}
+
+function cloneImportedVersions(timelineId: string, versions: TimelineVersion[]): TimelineVersion[] {
+  return versions.map((version) => {
+    if (version.schemaVersion !== VERSION_SCHEMA_VERSION) {
+      throw new Error(`Unsupported imported version schema: v${version.schemaVersion}`);
+    }
+
+    const snapshot = structuredClone({
+      projects: version.snapshot.projects,
+      holidays: version.snapshot.holidays ?? [],
+    });
+
+    return {
+      ...version,
+      id: newId('v'),
+      timelineId,
+      note: version.note?.trim() || undefined,
+      snapshot,
+      stats: derivedCounts(snapshot.projects),
+    };
+  });
 }
 
 export const timelineRepo = {
@@ -48,6 +71,36 @@ export const timelineRepo = {
     return id;
   },
 
+  async createFromImport(input: Timeline, versions: TimelineVersion[] = []): Promise<string> {
+    const id = newId('tl');
+    const now = Date.now();
+    const projects = structuredClone(input.projects);
+    const holidays = structuredClone(input.holidays ?? []);
+    const importedVersions = cloneImportedVersions(id, versions);
+    const meta: TimelineMeta = {
+      id,
+      title: input.title,
+      customer: input.customer,
+      startDate: input.startDate,
+      weeks: input.weeks,
+      note: input.note,
+      createdAt: now,
+      updatedAt: now,
+      ...derivedCounts(projects),
+    };
+    const data: TimelineData = { id, projects, holidays };
+
+    await db.transaction('rw', db.timelineMeta, db.timelineData, db.timelineVersions, async () => {
+      await db.timelineMeta.add(meta);
+      await db.timelineData.add(data);
+      if (importedVersions.length > 0) {
+        await db.timelineVersions.bulkAdd(importedVersions);
+      }
+    });
+
+    return id;
+  },
+
   async update(id: string, patch: Partial<Timeline>): Promise<void> {
     const now = Date.now();
     const updates: Partial<TimelineMeta> = {
@@ -73,6 +126,30 @@ export const timelineRepo = {
     }
 
     await db.timelineMeta.update(id, updates);
+  },
+
+  async replaceFromImport(id: string, input: Timeline, versions: TimelineVersion[] = []): Promise<void> {
+    const now = Date.now();
+    const projects = structuredClone(input.projects);
+    const holidays = structuredClone(input.holidays ?? []);
+    const importedVersions = cloneImportedVersions(id, versions);
+
+    await db.transaction('rw', db.timelineMeta, db.timelineData, db.timelineVersions, async () => {
+      await db.timelineData.put({ id, projects, holidays });
+      await db.timelineMeta.update(id, {
+        title: input.title,
+        customer: input.customer,
+        startDate: input.startDate,
+        weeks: input.weeks,
+        note: input.note,
+        updatedAt: now,
+        ...derivedCounts(projects),
+      });
+      await db.timelineVersions.where('timelineId').equals(id).delete();
+      if (importedVersions.length > 0) {
+        await db.timelineVersions.bulkAdd(importedVersions);
+      }
+    });
   },
 
   async delete(id: string): Promise<void> {
