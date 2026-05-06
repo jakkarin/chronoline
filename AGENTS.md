@@ -7,7 +7,9 @@
 ## Project Overview
 
 **Chronoline** is a local-first, browser-only Gantt / project timeline app and installable PWA.  
-No backend. No auth. Timeline data and saved versions live in IndexedDB via [Dexie](https://dexie.org/).
+No backend. No auth. Timelines can run in two persistence modes:
+- **IndexedDB mode** via [Dexie](https://dexie.org/) for dashboard-created timelines
+- **Direct edit mode** via the browser File System Access API for JSON files opened from the dashboard
 
 **Stack:**
 - **React 19** + **TypeScript 6** (**Vite 8**)
@@ -45,6 +47,7 @@ src/
 │   ├── date-utils.ts         # Working-day math, column generation, holiday helpers
 │   ├── id.ts                 # nanoid wrapper with prefixed IDs
 │   ├── task-colors.ts        # Task color presets and bar color helpers
+│   ├── timeline-file.ts      # File System Access helpers + JSON file session helpers
 │   ├── types.ts              # Shared domain types
 │   └── utils.ts              # cn() and shared utilities
 └── types/                    # Ambient/vendor typings (e.g. snapdom)
@@ -70,26 +73,29 @@ Defined in `src/lib/types.ts`:
 
 IndexedDB uses **three tables** (`timelineMeta`, `timelineData`, `timelineVersions`) so the dashboard can list lightweight records, the editor can load full timeline data, and the version history can restore saved snapshots.
 
+Direct edit mode loads the same `Timeline` / `TimelineVersion` shapes from a JSON envelope, but keeps the opened file handle and its working version list in editor session state until the user explicitly saves.
+
 ---
 
 ## State Management
 
-`src/store/timeline-store.ts` holds the **active timeline** plus `saveStatus` in Zustand, wrapped with `zundo` for undo/redo.
+`src/store/timeline-store.ts` holds the **active timeline**, `editorSession`, and `saveStatus` in Zustand, wrapped with `zundo` for undo/redo.
 
 - Undo history is limited to 50 states.
-- Only `timeline` is tracked via `partialize`; `saveStatus` is intentionally excluded.
-- Key actions include `setTimeline`, `setMeta`, project/task CRUD, cross-project moves, `toggleHoliday`, `saveVersion`, and `restoreVersion`.
-- Restoring a version reloads the timeline from Dexie and clears temporal undo history.
+- Only `timeline` is tracked via `partialize`; `saveStatus` and `editorSession` are intentionally excluded.
+- `editorSession.mode` is either `indexeddb` or `file`.
+- Key actions include `setTimeline`, `setMeta`, project/task CRUD, cross-project moves, `toggleHoliday`, `saveVersion`, `renameVersion`, `deleteVersion`, and `restoreVersion`.
+- Restoring a version clears temporal undo history. In IndexedDB mode it reloads from Dexie; in file mode it restores from in-memory versions kept on the active editor session.
 
-**Do not** store `saveStatus` or transient UI state in the undo stack.
+**Do not** store `saveStatus`, file handles, or transient UI state in the undo stack.
 
 ---
 
 ## Development Rules
 
-1. **No backend.** Timeline persistence goes through `src/lib/db/timelines.ts`; version snapshot flows go through `src/lib/db/versions.ts`. Never add server calls.
+1. **No backend.** Timeline persistence goes through `src/lib/db/timelines.ts` for IndexedDB mode and `src/lib/timeline-file.ts` for direct edit mode. Version snapshot flows go through `src/lib/db/versions.ts` in IndexedDB mode and in-memory session state in file mode. Never add server calls.
 2. **Every timeline write** must keep `updatedAt`, `projectCount`, and `taskCount` correct. Restores and deletes are part of this rule.
-3. **Auto-save** is debounced 300 ms and optimistic (store updates first, DB follows). See `src/hooks/use-autosave.ts`.
+3. **Saving behavior is mode-dependent.** IndexedDB mode auto-saves on a 300 ms debounce; direct edit mode does **not** auto-save and only writes to disk on explicit Save / `Cmd/Ctrl+S`. See `src/hooks/use-autosave.ts` and `src/lib/timeline-file.ts`.
 4. **shadcn components** in `src/components/ui/` are CLI-managed. Prefer generated updates over hand edits.
 5. **Imports** — prefer the `@/` alias (maps to `src/`). Relative imports are fine within the same feature folder.
 6. **Date handling** — use `date-fns` only. No `moment`, no raw `new Date()` arithmetic. Dates are stored as `YYYY-MM-DD` strings.
@@ -133,21 +139,25 @@ npm run build
 
 ### Undo / Redo
 - Triggered via toolbar buttons **and** `Cmd/Ctrl+Z` / `Cmd/Ctrl+Shift+Z`.
-- Restoring a saved version clears temporal history after the fresh DB snapshot is loaded.
+- Restoring a saved version clears temporal history after the restore is applied.
 
 ### Versions
-- Saved versions live in `timelineVersions` and snapshot `projects` plus `holidays`.
+- IndexedDB-mode versions live in `timelineVersions` and snapshot `projects` plus `holidays`.
+- Direct edit mode keeps versions in RAM on `editorSession.versions` until the next explicit file save writes them into the JSON envelope.
 - Restores can optionally create a backup version first.
 - Schema compatibility is gated by `VERSION_SCHEMA_VERSION` in `src/lib/db/schema.ts`.
 
 ### Import / Export / Present
-- JSON envelope schema: `{ $schema: "project-timeline/v1", exportedAt, timeline }`.
+- JSON envelope schema: `{ $schema: "project-timeline/v1", exportedAt, timeline, versions? }`.
 - Import is validated with **zod**; reject when the schema or timeline shape mismatches.
+- The dashboard can open a JSON file directly into the editor when the browser supports the File System Access API.
+- In direct edit mode, Save writes back to the same file handle rather than downloading a new file.
 - PDF/presentation capture renders isolated HTML and runs `html2canvas` inside an iframe before export/copy flows hand the result to `jsPDF` or the clipboard.
 
 ### Routing
 - `/` -> Dashboard
-- `/timeline/:id` -> Timeline Editor
+- `/timeline/:id` -> Timeline Editor for IndexedDB timelines and direct-edit sessions passed via route state
+- `/timeline/:id/direct` -> Timeline Editor for direct-edit sessions passed via route state
 - Anything else -> 404 screen with a button back to `/`
 
 ---
