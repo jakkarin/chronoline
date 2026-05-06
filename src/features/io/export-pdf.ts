@@ -2,6 +2,7 @@ import type { Timeline } from '@/lib/types';
 import { generateColumns, workingDaysBetween, DAY_LABELS } from '@/lib/date-utils';
 import { PRIORITY_BAR_COLOR, resolveTaskBarColor } from '@/lib/task-colors';
 import { format, parseISO } from 'date-fns';
+import geistFontCss from '@fontsource-variable/geist/index.css?inline';
 
 const CELL_W = 32; // px per day column
 const MIN_DAY_COL_W = 24;
@@ -18,8 +19,13 @@ const MIN_INFO_COL_WIDTHS = {
   percent: 84,
 } as const;
 const FIT_WIDTH_PAD = 28;
-const SANS_FAMILY = "'Geist Variable', ui-sans-serif, system-ui, sans-serif";
+const SANS_FAMILY = "'Geist Variable', 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif";
 const MONO_FAMILY = "'Ubuntu Mono', monospace";
+const PRESENT_FONT_LINKS = `
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@100..900&family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+`;
 const HEADER_FONT = `700 10px ${SANS_FAMILY}`;
 const BADGE_FONT = `700 10px ${SANS_FAMILY}`;
 const PROJECT_NAME_FONT = `700 12px ${SANS_FAMILY}`;
@@ -460,8 +466,10 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${title}</title>
+${PRESENT_FONT_LINKS}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
+  ${geistFontCss}
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --col-status-width: ${columnWidths.status}px;
@@ -478,7 +486,7 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
     --table-fit-width: ${columnWidths.table + CONTENT_PAD * 2 + FIT_WIDTH_PAD}px;
   }
   html, body { width: 100%; min-height: 100%; }
-  body { font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif; background: #fff; color: #0f172a; overflow: auto; }
+  body { font-family: ${SANS_FAMILY}; background: #fff; color: #0f172a; overflow: auto; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   #content { width: var(--table-fit-width); min-height: 100vh; padding: 14px ${CONTENT_PAD}px; background: #fff; }
 </style>

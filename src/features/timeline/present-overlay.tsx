@@ -23,6 +23,27 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
   const [loadedHtml, setLoadedHtml] = useState<string | null>(null);
   const frameLoaded = loadedHtml === html;
 
+  const waitForFrameFonts = useCallback(async () => {
+    const fontReady = iframeRef.current?.contentDocument?.fonts?.ready;
+    if (!fontReady) return;
+
+    await Promise.race([
+      fontReady.catch(() => undefined),
+      sleep(5000),
+    ]);
+  }, []);
+
+  const handleFrameLoad = useCallback(() => {
+    const frameWindow = iframeRef.current?.contentWindow;
+
+    void (async () => {
+      await waitForFrameFonts();
+
+      if (iframeRef.current?.contentWindow !== frameWindow) return;
+      setLoadedHtml(html);
+    })();
+  }, [html, waitForFrameFonts]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -67,6 +88,8 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
           return;
         }
 
+        await waitForFrameFonts();
+
         timer = setTimeout(() => {
           window.removeEventListener('message', handler);
           reject(new Error('Capture timeout'));
@@ -79,7 +102,7 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
 
       void runCapture();
     });
-  }, []);
+  }, [waitForFrameFonts]);
 
   const handleExportImage = useCallback(async () => {
     setExporting(true);
@@ -154,7 +177,7 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
           key={html}
           ref={iframeRef}
           srcDoc={html}
-          onLoad={() => setLoadedHtml(html)}
+          onLoad={handleFrameLoad}
           style={{
             flex: 1,
             border: 'none',
