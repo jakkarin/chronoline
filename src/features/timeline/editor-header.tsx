@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useTimelineStore } from '@/store/timeline-store';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { DeferredInput } from '@/components/deferred-input';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -53,12 +54,11 @@ export function EditorHeader() {
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="uppercase font-semibold tracking-wide text-[10px]">Start</span>
-            <input
-              type="date"
-              className="h-6 text-xs font-mono border border-input rounded px-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+            <DatePicker
+              className="h-6 w-28 rounded border border-input bg-background px-1.5 text-xs hover:bg-background"
               value={timeline.startDate}
-              onChange={(e) => setMeta({ startDate: e.target.value })}
-              aria-label="Start date"
+              onChange={(date) => setMeta({ startDate: date })}
+              placeholder="Pick date"
             />
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
