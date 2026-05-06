@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { loadTimelineSession } from '@/lib/timeline-adapters';
 import { useTimelineStore } from '@/store/timeline-store';
-import { timelineRepo } from '@/lib/db/timelines';
 import type { DirectEditNavigationState } from '@/lib/timeline-file';
 
 export function useTimeline(id: string | undefined) {
@@ -16,41 +16,19 @@ export function useTimeline(id: string | undefined) {
     setLoading(true);
     setNotFound(false);
 
-    if (directEdit) {
-      setTimeline(directEdit.timeline);
-      setEditorSession({
-        mode: 'file',
-        fileHandle: directEdit.fileHandle,
-        fileName: directEdit.fileName,
-        versions: directEdit.versions,
-      });
-      setLoading(false);
-      return () => {
-        setTimeline(null);
-        setEditorSession(null);
-      };
-    }
-
-    if (!id) {
-      setNotFound(true);
-      setLoading(false);
-      return () => {
-        setTimeline(null);
-        setEditorSession(null);
-      };
-    }
-
-    timelineRepo.get(id).then((tl) => {
-      if (!tl) {
+    void loadTimelineSession({ id, navigationState: directEdit ? { directEdit } : null }).then((loaded) => {
+      if (!loaded) {
         setNotFound(true);
       } else {
-        setTimeline(tl);
-        setEditorSession({ mode: 'indexeddb', timelineId: id });
+        setTimeline(loaded.timeline);
+        setEditorSession(loaded.session);
+        useTimelineStore.temporal.getState().clear();
       }
       setLoading(false);
     });
 
     return () => {
+      useTimelineStore.temporal.getState().clear();
       setTimeline(null);
       setEditorSession(null);
     };

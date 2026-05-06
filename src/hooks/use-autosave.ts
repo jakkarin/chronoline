@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { getTimelineAdapter } from '@/lib/timeline-adapters';
 import { useTimelineStore } from '@/store/timeline-store';
-import { timelineRepo } from '@/lib/db/timelines';
 
 export function useAutosave() {
   const timeline = useTimelineStore((s) => s.timeline);
@@ -11,7 +11,9 @@ export function useAutosave() {
   useEffect(() => {
     if (!timeline || !editorSession) return;
 
-    if (editorSession.mode === 'file') {
+    const adapter = getTimelineAdapter(editorSession);
+
+    if (!adapter.canAutosave) {
       setSaveStatus('idle');
       return;
     }
@@ -21,7 +23,7 @@ export function useAutosave() {
     timerRef.current = setTimeout(async () => {
       setSaveStatus('saving');
       try {
-        await timelineRepo.update(timeline.id, timeline);
+        await adapter.persistTimeline({ timeline, session: editorSession });
         setSaveStatus('saved');
       } catch {
         setSaveStatus('error');

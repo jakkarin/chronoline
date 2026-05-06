@@ -1,5 +1,6 @@
 import { parseImportJSON } from '@/features/io/import-json';
-import type { Timeline, TimelineExport, TimelineVersion } from '@/lib/types';
+import { buildTimelineExportEnvelope } from '@/lib/timeline-json';
+import type { Timeline, TimelineVersion } from '@/lib/types';
 
 interface PickerType {
   description?: string;
@@ -49,18 +50,6 @@ const JSON_FILE_TYPES: PickerType[] = [
 export function supportsFileSystemAccess() {
   if (typeof window === 'undefined') return false;
   return typeof (window as WindowWithFileAccess).showOpenFilePicker === 'function';
-}
-
-export function buildTimelineExportEnvelope(
-  timeline: Timeline,
-  versions: TimelineVersion[] = []
-): TimelineExport {
-  return {
-    $schema: 'project-timeline/v1',
-    exportedAt: new Date().toISOString(),
-    timeline,
-    versions,
-  };
 }
 
 export async function pickTimelineFileForDirectEdit(): Promise<NonNullable<DirectEditNavigationState['directEdit']>> {

@@ -7,8 +7,7 @@ import { EditorHeader } from '@/features/timeline/editor-header';
 import { Toolbar } from '@/features/timeline/toolbar';
 import { TimelineTable } from '@/features/timeline/timeline-table';
 import { Button } from '@/components/ui/button';
-import { exportJSON } from '@/features/io/export-json';
-import { saveTimelineToFile } from '@/lib/timeline-file';
+import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
 
 export default function TimelineEditor() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +15,7 @@ export default function TimelineEditor() {
   const { loading, notFound } = useTimeline(id);
   const saveStatus = useTimelineStore((s) => s.saveStatus);
   const editorSession = useTimelineStore((s) => s.editorSession);
+  const adapter = editorSession ? getTimelineAdapter(editorSession) : null;
   const [freezeColumns, setFreezeColumns] = useState(false);
 
   useAutosave();
@@ -34,22 +34,15 @@ export default function TimelineEditor() {
       if (mod && e.key === 's') {
         e.preventDefault();
         const state = useTimelineStore.getState();
-        if (!state.timeline) return;
+        if (!state.timeline || !state.editorSession) return;
         const timeline = state.timeline;
         const session = state.editorSession;
 
         void (async () => {
           state.setSaveStatus('saving');
           try {
-            if (session?.mode === 'file') {
-              await saveTimelineToFile({
-                timeline,
-                fileHandle: session.fileHandle,
-                versions: session.versions,
-              });
-            } else {
-              await exportJSON(timeline);
-            }
+            const nextSession = await saveTimelineForSession(timeline, session);
+            state.setEditorSession(nextSession);
             state.setSaveStatus('saved');
           } catch {
             state.setSaveStatus('error');
@@ -102,7 +95,7 @@ export default function TimelineEditor() {
         <span>·</span>
         <span><kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⌘Z</kbd> Undo</span>
         <span>·</span>
-        <span><kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⌘S</kbd> {editorSession?.mode === 'file' ? 'Save file' : 'Save JSON'}</span>
+        <span><kbd className="bg-muted border border-border rounded px-1 py-0.5 text-[9px]">⌘S</kbd> {adapter?.saveActionLabel ?? 'Save'}</span>
       </footer>
     </div>
   );

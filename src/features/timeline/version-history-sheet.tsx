@@ -22,8 +22,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { getTimelineAdapter } from '@/lib/timeline-adapters';
 import { useTimelineStore } from '@/store/timeline-store';
-import { versionsRepo } from '@/lib/db/versions';
 import type { TimelineVersion } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -33,7 +33,7 @@ interface Props {
 }
 
 export function VersionHistorySheet({ open, onOpenChange }: Props) {
-  const timelineId = useTimelineStore((s) => s.timeline?.id);
+  const timeline = useTimelineStore((s) => s.timeline);
   const editorSession = useTimelineStore((s) => s.editorSession);
   const restoreVersion = useTimelineStore((s) => s.restoreVersion);
   const renameVersion = useTimelineStore((s) => s.renameVersion);
@@ -47,22 +47,19 @@ export function VersionHistorySheet({ open, onOpenChange }: Props) {
   const [backupFirst, setBackupFirst] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!timelineId) return;
-
-    if (editorSession?.mode === 'file') {
-      setVersions(editorSession.versions);
-      setLoading(false);
-      return;
-    }
+    if (!timeline || !editorSession) return;
 
     setLoading(true);
     try {
-      const list = await versionsRepo.list(timelineId);
+      const list = await getTimelineAdapter(editorSession).listVersions({
+        timeline,
+        session: editorSession,
+      });
       setVersions(list);
     } finally {
       setLoading(false);
     }
-  }, [editorSession, timelineId]);
+  }, [editorSession, timeline]);
 
   useEffect(() => {
     if (open) {

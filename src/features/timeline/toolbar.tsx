@@ -18,15 +18,14 @@ import { Separator } from '@/components/ui/separator';
 import { HolidaysSheet } from './holidays-sheet';
 import { SaveVersionDialog } from './save-version-dialog';
 import { VersionHistorySheet } from './version-history-sheet';
-import { exportJSON } from '@/features/io/export-json';
 import { parseImportJSON } from '@/features/io/import-json';
 import { generatePresentHTML } from '@/features/io/export-pdf';
 import { PresentOverlay } from './present-overlay';
 import { ReorderDialog } from './reorder-dialog';
+import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
 import { timelineRepo } from '@/lib/db/timelines';
 import type { ParsedTimelineImport } from '@/lib/types';
 import { toast } from 'sonner';
-import { saveTimelineToFile } from '@/lib/timeline-file';
 
 interface ToolbarProps {
   freezeColumns: boolean;
@@ -55,6 +54,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   );
   const canUndo = pastStates.length > 0;
   const canRedo = futureStates.length > 0;
+  const adapter = editorSession ? getTimelineAdapter(editorSession) : null;
   const directEdit = editorSession?.mode === 'file';
 
   function scrollToToday() {
@@ -63,18 +63,11 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   }
 
   async function handleSaveJSON() {
-    if (!timeline) return;
+    if (!timeline || !editorSession) return;
     try {
       setSaveStatus('saving');
-      if (directEdit && editorSession.mode === 'file') {
-        await saveTimelineToFile({
-          timeline,
-          fileHandle: editorSession.fileHandle,
-          versions: editorSession.versions,
-        });
-      } else {
-        await exportJSON(timeline);
-      }
+      const session = await saveTimelineForSession(timeline, editorSession);
+      useTimelineStore.getState().setEditorSession(session);
       setSaveStatus('saved');
     } catch (err) {
       setSaveStatus('error');
@@ -234,7 +227,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
         <Separator orientation="vertical" className="h-5" />
 
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5" onClick={handleSaveJSON}>
-          <Download className="h-3.5 w-3.5" /> {directEdit ? 'Save File' : 'Save JSON'}
+          <Download className="h-3.5 w-3.5" /> {adapter?.saveActionLabel ?? 'Save'}
         </Button>
         <Button
           variant="ghost"
