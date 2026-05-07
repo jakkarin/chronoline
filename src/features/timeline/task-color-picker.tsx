@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -6,43 +6,12 @@ import { Input } from '@/components/ui/input';
 import {
   HEX_TASK_COLOR_PATTERN,
   isHexTaskColor,
-  isPresetTaskColor,
   TASK_COLOR_OPTIONS,
   resolveTaskBarColor,
 } from '@/lib/task-colors';
+import { useRecentTaskColors } from '@/hooks/use-recent-task-colors';
 import type { Priority, TaskColor } from '@/lib/types';
 import { cn } from '@/lib/utils';
-
-const RECENT_TASK_COLORS_STORAGE_KEY = 'chronoline:recent-task-colors';
-const MAX_RECENT_TASK_COLORS = 6;
-
-function isTaskColor(value: string): value is TaskColor {
-  return isHexTaskColor(value) || isPresetTaskColor(value);
-}
-
-function loadRecentTaskColors(): TaskColor[] {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const stored = localStorage.getItem(RECENT_TASK_COLORS_STORAGE_KEY);
-    if (!stored) return [];
-
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .filter((value): value is string => typeof value === 'string')
-      .filter(isTaskColor)
-      .slice(0, MAX_RECENT_TASK_COLORS);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentTaskColors(colors: TaskColor[]) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(RECENT_TASK_COLORS_STORAGE_KEY, JSON.stringify(colors));
-}
 
 function normalizeHexInput(value: string): string {
   const trimmed = value.trim().toLowerCase();
@@ -63,30 +32,19 @@ interface TaskColorPickerProps {
 
 export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerProps) {
   const [open, setOpen] = useState(false);
-  const [recentColors, setRecentColors] = useState<TaskColor[]>(loadRecentTaskColors);
-  const [hexInput, setHexInput] = useState('');
-  const hexInputId = useId();
+  const { recentColors, rememberColor } = useRecentTaskColors();
   const displayColor = resolveTaskBarColor(value, priority);
   const pickerColor = isHexTaskColor(value) ? value : displayColor;
-  const latestCustomColorRef = useRef<TaskColor | null>(isHexTaskColor(value) ? value : null);
+  const [hexInput, setHexInput] = useState(pickerColor);
+  const [lastPickerColor, setLastPickerColor] = useState(pickerColor);
+  const hexInputId = useId();
   const pendingRecentColorRef = useRef<TaskColor | null>(null);
   const normalizedHexInput = normalizeHexInput(hexInput);
   const isHexInputValid = HEX_TASK_COLOR_PATTERN.test(normalizedHexInput);
 
-  useEffect(() => {
+  if (pickerColor !== lastPickerColor) {
     setHexInput(pickerColor);
-  }, [pickerColor, open]);
-
-  function rememberColor(nextValue: TaskColor | null) {
-    if (!nextValue) return;
-
-    setRecentColors((current) => {
-      const nextColors = [nextValue, ...current.filter((color) => color !== nextValue)]
-        .slice(0, MAX_RECENT_TASK_COLORS);
-
-      persistRecentTaskColors(nextColors);
-      return nextColors;
-    });
+    setLastPickerColor(pickerColor);
   }
 
   function queueRecentColor(nextValue: TaskColor | null) {
@@ -117,7 +75,6 @@ export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerPr
 
   function handleCustomPickerChange(nextColor: string) {
     const normalized = nextColor.toLowerCase() as TaskColor;
-    latestCustomColorRef.current = normalized;
     queueRecentColor(normalized);
     setHexInput(normalized);
     onChange(normalized);
@@ -130,12 +87,14 @@ export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerPr
     }
 
     const normalized = normalizedHexInput as TaskColor;
-    latestCustomColorRef.current = normalized;
     queueRecentColor(normalized);
     onChange(normalized);
 
     if (closeAfterCommit) {
       handleOpenChange(false);
+    } else {
+      rememberColor(normalized);
+      pendingRecentColorRef.current = null;
     }
 
     return true;

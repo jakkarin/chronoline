@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { HEX_TASK_COLOR_PATTERN, TASK_COLOR_VALUES } from '@/lib/task-colors';
-import type { ParsedTimelineImport, Project, Task, Timeline, TimelineVersion } from '@/lib/types';
+import type { ParsedTimelineImport, Project, Task, TimelineVersion } from '@/lib/types';
 
 const PRESET_TASK_COLORS = new Set<string>(TASK_COLOR_VALUES);
 
@@ -34,7 +34,7 @@ const ProjectSchema: z.ZodType<Project> = z.object({
   tasks: z.array(TaskSchema),
 });
 
-const TimelineSchema: z.ZodType<Timeline> = z.object({
+const BaseTimelineSchema = z.object({
   id: z.string(),
   title: z.string(),
   customer: z.string(),
@@ -71,7 +71,7 @@ const TimelineVersionSchema: z.ZodType<TimelineVersion> = z.object({
 const EnvelopeSchema = z.object({
   $schema: z.literal('project-timeline/v1'),
   exportedAt: z.string(),
-  timeline: TimelineSchema,
+  timeline: BaseTimelineSchema,
   versions: z.array(TimelineVersionSchema).optional(),
 });
 
@@ -82,7 +82,20 @@ export function parseImportJSON(raw: string): ParsedTimelineImport {
     throw new Error('Invalid file format: ' + result.error.issues[0]?.message);
   }
   return {
-    timeline: result.data.timeline,
+    timeline: {
+      id: result.data.timeline.id,
+      title: result.data.timeline.title,
+      customer: result.data.timeline.customer,
+      startDate: result.data.timeline.startDate,
+      weeks: result.data.timeline.weeks,
+      note: result.data.timeline.note,
+      createdAt: result.data.timeline.createdAt,
+      updatedAt: result.data.timeline.updatedAt,
+      projectCount: result.data.timeline.projectCount,
+      taskCount: result.data.timeline.taskCount,
+      projects: result.data.timeline.projects,
+      holidays: result.data.timeline.holidays,
+    },
     versions: result.data.versions ?? [],
   };
 }
