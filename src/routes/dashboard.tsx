@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
-import { FolderOpen, Search } from 'lucide-react';
+import { CalendarDays, FolderOpen, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { timelineRepo } from '@/lib/db/timelines';
 import { seedDemoDataIfEmpty } from '@/lib/db/seed';
 import type { TimelineMeta } from '@/lib/types';
+import { HolidayPresetDialog } from '@/features/dashboard/holiday-preset-dialog';
 import { TimelineCard } from '@/features/dashboard/timeline-card';
 import { EmptyState } from '@/features/dashboard/empty-state';
 import { NewTimelineDialog } from '@/features/dashboard/new-timeline-dialog';
@@ -21,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { loadHolidayPresets, persistHolidayPresets } from '@/lib/holiday-preset';
 
 type SortKey = 'updatedAt' | 'createdAt' | 'title';
 
@@ -31,8 +33,13 @@ export default function Dashboard() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('updatedAt');
   const [newOpen, setNewOpen] = useState(false);
+  const [presetOpen, setPresetOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [openingFile, setOpeningFile] = useState(false);
+  const [holidayPresets, setHolidayPresets] = useState(() => loadHolidayPresets());
+  const [holidayPresetDrafts, setHolidayPresetDrafts] = useState(() => loadHolidayPresets());
+  const [selectedHolidayPresetId, setSelectedHolidayPresetId] = useState<string | null>(null);
+  const [selectedNewHolidayPresetId, setSelectedNewHolidayPresetId] = useState('none');
   const { syncFromTimelines } = useRecentTaskColors();
 
   const canDirectEdit = supportsFileSystemAccess();
@@ -105,6 +112,31 @@ export default function Dashboard() {
     return list;
   }, [timelines, search, sort]);
 
+  function handleSaveHolidayPresets(presets: Parameters<typeof persistHolidayPresets>[0]) {
+    const nextPresets = persistHolidayPresets(presets);
+    setHolidayPresets(nextPresets);
+    setHolidayPresetDrafts(nextPresets);
+
+    if (!nextPresets.some((preset) => preset.id === selectedNewHolidayPresetId)) {
+      setSelectedNewHolidayPresetId('none');
+    }
+
+    if (!nextPresets.some((preset) => preset.id === selectedHolidayPresetId)) {
+      setSelectedHolidayPresetId(nextPresets[0]?.id ?? null);
+    }
+  }
+
+  function handleOpenPresetDialog() {
+    setHolidayPresetDrafts(holidayPresets);
+    setSelectedHolidayPresetId(holidayPresets[0]?.id ?? null);
+    setPresetOpen(true);
+  }
+
+  function handleOpenNewTimelineDialog() {
+    setSelectedNewHolidayPresetId(holidayPresets[0]?.id ?? 'none');
+    setNewOpen(true);
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top bar */}
@@ -117,6 +149,15 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <Button size="sm" variant="outline" onClick={handleOpenPresetDialog} className="gap-1.5">
+            <CalendarDays className="h-4 w-4" />
+            Holiday Presets
+            {holidayPresets.length > 0 && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground">
+                {holidayPresets.length}
+              </span>
+            )}
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -128,7 +169,7 @@ export default function Dashboard() {
             <FolderOpen className="h-4 w-4" />
             Open JSON
           </Button>
-          <Button size="sm" onClick={() => setNewOpen(true)} className="gap-1.5">
+          <Button size="sm" onClick={handleOpenNewTimelineDialog} className="gap-1.5">
             + New Timeline
           </Button>
         </div>
@@ -163,7 +204,7 @@ export default function Dashboard() {
             Loading…
           </div>
         ) : filtered.length === 0 && !search ? (
-          <EmptyState onNew={() => setNewOpen(true)} />
+          <EmptyState onNew={handleOpenNewTimelineDialog} />
         ) : filtered.length === 0 ? (
           <div className="flex items-center justify-center py-24 text-muted-foreground text-sm">
             No timelines match &ldquo;{search}&rdquo;
@@ -177,7 +218,23 @@ export default function Dashboard() {
         )}
       </main>
 
-      <NewTimelineDialog open={newOpen} onOpenChange={setNewOpen} onCreated={load} />
+      <NewTimelineDialog
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        onCreated={load}
+        holidayPresets={holidayPresets}
+        selectedHolidayPresetId={selectedNewHolidayPresetId}
+        onSelectedHolidayPresetIdChange={setSelectedNewHolidayPresetId}
+      />
+      <HolidayPresetDialog
+        open={presetOpen}
+        onOpenChange={setPresetOpen}
+        presets={holidayPresetDrafts}
+        selectedPresetId={selectedHolidayPresetId}
+        onSelectedPresetIdChange={setSelectedHolidayPresetId}
+        onPresetsChange={setHolidayPresetDrafts}
+        onSave={handleSaveHolidayPresets}
+      />
 
       {/* Footer */}
       <footer className="border-t border-border px-6 py-4 shrink-0">
