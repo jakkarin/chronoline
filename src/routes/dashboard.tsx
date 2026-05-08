@@ -12,7 +12,6 @@ import { TermsPrivacyModal } from '@/components/terms-privacy-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { useRecentTaskColors } from '@/hooks/use-recent-task-colors';
 import { pickTimelineFileForDirectEdit, supportsFileSystemAccess } from '@/lib/timeline-file';
 import { toast } from 'sonner';
 import {
@@ -40,16 +39,12 @@ export default function Dashboard() {
   const [holidayPresetDrafts, setHolidayPresetDrafts] = useState(() => loadHolidayPresets());
   const [selectedHolidayPresetId, setSelectedHolidayPresetId] = useState<string | null>(null);
   const [selectedNewHolidayPresetId, setSelectedNewHolidayPresetId] = useState('none');
-  const { syncFromTimelines } = useRecentTaskColors();
 
   const canDirectEdit = supportsFileSystemAccess();
 
-  async function loadTimelineListAndSyncRecentColors() {
+  async function loadTimelineList() {
     await seedDemoDataIfEmpty();
-    const list = await timelineRepo.list();
-    const timelines = await Promise.all(list.map((meta) => timelineRepo.get(meta.id)));
-    syncFromTimelines(timelines);
-    return list;
+    return timelineRepo.list();
   }
 
   async function load(showLoadingState = true) {
@@ -57,7 +52,7 @@ export default function Dashboard() {
       setLoading(true);
     }
 
-    const list = await loadTimelineListAndSyncRecentColors();
+    const list = await loadTimelineList();
 
     setTimelines(list);
     setLoading(false);
@@ -83,7 +78,7 @@ export default function Dashboard() {
     let active = true;
 
     void (async () => {
-      const list = await loadTimelineListAndSyncRecentColors();
+      const list = await loadTimelineList();
 
       if (!active) return;
 
@@ -94,7 +89,7 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [syncFromTimelines]);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();

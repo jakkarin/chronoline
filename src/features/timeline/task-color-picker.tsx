@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,16 +36,14 @@ export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerPr
   const displayColor = resolveTaskBarColor(value, priority);
   const pickerColor = isHexTaskColor(value) ? value : displayColor;
   const [hexInput, setHexInput] = useState(pickerColor);
-  const [lastPickerColor, setLastPickerColor] = useState(pickerColor);
   const hexInputId = useId();
   const pendingRecentColorRef = useRef<TaskColor | null>(null);
   const normalizedHexInput = normalizeHexInput(hexInput);
   const isHexInputValid = HEX_TASK_COLOR_PATTERN.test(normalizedHexInput);
 
-  if (pickerColor !== lastPickerColor) {
+  useEffect(() => {
     setHexInput(pickerColor);
-    setLastPickerColor(pickerColor);
-  }
+  }, [pickerColor]);
 
   function queueRecentColor(nextValue: TaskColor | null) {
     pendingRecentColorRef.current = nextValue;
