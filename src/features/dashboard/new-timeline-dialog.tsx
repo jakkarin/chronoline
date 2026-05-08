@@ -86,7 +86,7 @@ export function NewTimelineDialog({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="tl-holiday-preset">Holiday Preset</Label>
-            <Select value={selectedHolidayPresetId} onValueChange={onSelectedHolidayPresetIdChange}>
+            <Select value={selectedHolidayPresetId} onValueChange={(value) => onSelectedHolidayPresetIdChange(value ?? 'none')}>
               <SelectTrigger id="tl-holiday-preset">
                 <SelectValue placeholder="No preset">
                   {selectedPreset?.name ?? 'No preset'}
