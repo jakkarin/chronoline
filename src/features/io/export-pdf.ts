@@ -154,7 +154,7 @@ export async function waitForPresentMeasurementFonts() {
 function getPresentColumnWidths(
   timeline: Timeline,
   cols: ReturnType<typeof generateColumns>,
-  weekGroups: { label: string }[]
+  weekGroups: { label: string; rangeLabel: string }[]
 ): PresentColumnWidths {
   const indentWidth = MIN_INFO_COL_WIDTHS.indent;
   let statusWidth = measureHeaderCellWidth('STATUS', MIN_INFO_COL_WIDTHS.status);
@@ -188,7 +188,14 @@ function getPresentColumnWidths(
   for (const weekGroup of weekGroups) {
     dayWidth = Math.max(
       dayWidth,
-      Math.ceil((measureTextWidth(weekGroup.label, WEEK_HEADER_FONT) + WEEK_TEXT_PAD_X) / 5)
+      Math.ceil(
+        (
+          Math.max(
+            measureTextWidth(weekGroup.label, WEEK_HEADER_FONT),
+            measureTextWidth(weekGroup.rangeLabel, DAY_DATE_FONT)
+          ) + WEEK_TEXT_PAD_X
+        ) / 5
+      )
     );
   }
 
@@ -420,14 +427,17 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
   const cols = generateColumns(timeline.startDate, timeline.weeks);
 
   // ── Week groups for header ─────────────────────────────────────────────
-  const weekGroups: { label: string }[] = [];
+  const weekGroups: { label: string; rangeLabel: string }[] = [];
   let curW = -1;
   for (const col of cols) {
     if (col.weekIndex !== curW) {
       curW = col.weekIndex;
       const mon = col.date;
       const fri = new Date(mon); fri.setDate(fri.getDate() + 4);
-      weekGroups.push({ label: `Wk ${col.weekIndex + 1}  ${format(mon,'d MMM')}–${format(fri,'d MMM yyyy')}` });
+      weekGroups.push({
+        label: `Wk${col.weekIndex + 1}`,
+        rangeLabel: `${format(mon, 'd MMM')} - ${format(fri, 'd MMM yyyy')}`,
+      });
     }
   }
 
@@ -493,7 +503,10 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
   }).join('');
 
   const weekHeaderCells = weekGroups.map(w =>
-    `<th colspan="5" style="padding:3px 6px;font-size:10px;font-weight:600;color:#64748b;text-align:center;background:#f8fafc;border-bottom:1px solid #e2e8f0;border-left:1px solid #94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.label}</th>`
+    `<th colspan="5" style="padding:4px 6px;text-align:center;background:#f8fafc;border-bottom:1px solid #e2e8f0;border-left:1px solid #94a3b8;overflow:hidden;text-overflow:ellipsis">
+      <div style="font-size:10px;font-weight:600;line-height:1.1;color:#64748b;white-space:nowrap">${w.label}</div>
+      <div style="margin-top:2px;font-size:9px;font-weight:400;line-height:1.1;color:#94a3b8;white-space:nowrap">${w.rangeLabel}</div>
+    </th>`
   ).join('');
 
   const today = format(new Date(), 'dd/MM/yyyy HH:mm');

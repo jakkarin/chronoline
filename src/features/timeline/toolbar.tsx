@@ -22,6 +22,7 @@ import { parseImportJSON } from '@/features/io/import-json';
 import { generatePresentHTML, waitForPresentMeasurementFonts } from '@/features/io/export-pdf';
 import { PresentOverlay } from './present-overlay';
 import { ReorderDialog } from './reorder-dialog';
+import { useRecentTaskColors } from '@/hooks/use-recent-task-colors';
 import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
 import { timelineRepo } from '@/lib/db/timelines';
 import type { ParsedTimelineImport } from '@/lib/types';
@@ -47,6 +48,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { syncFromTimeline } = useRecentTaskColors();
 
   const { undo, redo, pastStates, futureStates } = useStore(
     useTimelineStore.temporal,
@@ -96,12 +98,17 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
     setPendingImport(null);
   }
 
+  function syncImportedTimelineRecentColors(importedTimeline: ParsedTimelineImport['timeline']) {
+    syncFromTimeline(importedTimeline);
+  }
+
   async function handleReplaceImport() {
     if (!timeline || !pendingImport) return;
 
     setImporting(true);
     try {
       await timelineRepo.replaceFromImport(timeline.id, pendingImport.timeline, pendingImport.versions);
+      syncImportedTimelineRecentColors(pendingImport.timeline);
       const updated = await timelineRepo.get(timeline.id);
       if (updated) {
         setTimeline(updated);
@@ -122,6 +129,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
     setImporting(true);
     try {
       await timelineRepo.createFromImport(pendingImport.timeline, pendingImport.versions);
+      syncImportedTimelineRecentColors(pendingImport.timeline);
       toast.success(`Imported as new timeline${pendingImport.versions.length > 0 ? ' with save history' : ''}`);
       closeImportDialog();
     } catch (err) {

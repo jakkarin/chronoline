@@ -4,15 +4,15 @@ import { X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { loadHolidayPresets, THAI_PUBLIC_HOLIDAYS_2026 } from '@/lib/holiday-preset';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useTimelineStore } from '@/store/timeline-store';
-
-const THAI_HOLIDAYS_2026 = [
-  '2026-01-01', '2026-02-12', '2026-03-16', '2026-04-06',
-  '2026-04-13', '2026-04-14', '2026-04-15', '2026-05-01',
-  '2026-05-04', '2026-05-11', '2026-06-03', '2026-07-28',
-  '2026-08-12', '2026-10-13', '2026-10-23', '2026-12-05',
-  '2026-12-10', '2026-12-31',
-];
 
 interface Props {
   open: boolean;
@@ -22,14 +22,24 @@ interface Props {
 export function HolidaysSheet({ open, onOpenChange }: Props) {
   const holidays = useTimelineStore((s) => s.timeline?.holidays ?? []);
   const toggleHoliday = useTimelineStore((s) => s.toggleHoliday);
+  const setHolidays = useTimelineStore((s) => s.setHolidays);
   const [month, setMonth] = useState<Date>(new Date());
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+
+  const presets = loadHolidayPresets();
+  const selectedPreset = presets.find((preset) => preset.id === selectedPresetId) ?? null;
 
   const selected = holidays.map((h) => parseISO(h));
 
   function addThaiHolidays() {
-    for (const d of THAI_HOLIDAYS_2026) {
+    for (const d of THAI_PUBLIC_HOLIDAYS_2026) {
       if (!holidays.includes(d)) toggleHoliday(d);
     }
+  }
+
+  function applyPresetOverride() {
+    if (!selectedPreset) return;
+    setHolidays(selectedPreset.holidays);
   }
 
   return (
@@ -39,6 +49,31 @@ export function HolidaysSheet({ open, onOpenChange }: Props) {
           <SheetTitle>Holidays</SheetTitle>
         </SheetHeader>
         <div className="mt-4 flex flex-col gap-4 px-4 overflow-y-auto pb-4">
+          <div className="grid gap-2">
+            <Select value={selectedPresetId} onValueChange={(value) => setSelectedPresetId(value ?? '')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select preset to override">
+                  {selectedPreset?.name ?? 'Select preset to override'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {presets.map((preset) => (
+                  <SelectItem key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" size="sm" onClick={applyPresetOverride} disabled={!selectedPreset}>
+              Override with preset
+            </Button>
+
+            {presets.length === 0 && (
+              <p className="text-xs text-muted-foreground">No holiday presets available on the dashboard yet.</p>
+            )}
+          </div>
+
           <Calendar
             mode="multiple"
             selected={selected}

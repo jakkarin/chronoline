@@ -25,6 +25,7 @@ interface TimelineStore {
   moveProject: (fromIdx: number, toIdx: number) => void;
   moveTask: (fromProjectId: string, fromIdx: number, toProjectId: string, toIdx: number) => void;
   toggleHoliday: (date: string) => void;
+  setHolidays: (dates: string[]) => void;
   renameVersion: (versionId: string, name: string) => Promise<void>;
   deleteVersion: (versionId: string) => Promise<void>;
   saveVersion: (name: string, note?: string) => Promise<void>;
@@ -172,6 +173,14 @@ export const useTimelineStore = create<TimelineStore>()(
             } else {
               holidays.splice(idx, 1);
             }
+          })
+        ),
+
+      setHolidays: (dates) =>
+        set(
+          produce((state: TimelineStore) => {
+            if (!state.timeline) return;
+            state.timeline.holidays = [...dates];
           })
         ),
 

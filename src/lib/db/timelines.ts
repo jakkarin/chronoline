@@ -44,7 +44,11 @@ export const timelineRepo = {
       db.timelineData.get(id),
     ]);
     if (!meta || !data) return null;
-    return { ...meta, projects: data.projects, holidays: data.holidays ?? [] };
+    return {
+      ...meta,
+      projects: data.projects,
+      holidays: data.holidays ?? [],
+    };
   },
 
   async create(input: Partial<Timeline>): Promise<string> {
@@ -115,14 +119,19 @@ export const timelineRepo = {
       }
     }
 
-    if (patch.projects !== undefined) {
-      Object.assign(updates, derivedCounts(patch.projects));
-      await db.timelineData.update(id, {
-        projects: patch.projects,
-        ...(patch.holidays !== undefined ? { holidays: patch.holidays } : {}),
-      });
-    } else if (patch.holidays !== undefined) {
-      await db.timelineData.update(id, { holidays: patch.holidays });
+    if (patch.projects !== undefined || patch.holidays !== undefined) {
+      const timelineDataPatch: Partial<TimelineData> = {};
+
+      if (patch.projects !== undefined) {
+        Object.assign(updates, derivedCounts(patch.projects));
+        timelineDataPatch.projects = patch.projects;
+      }
+
+      if (patch.holidays !== undefined) {
+        timelineDataPatch.holidays = patch.holidays;
+      }
+
+      await db.timelineData.update(id, timelineDataPatch);
     }
 
     await db.timelineMeta.update(id, updates);
