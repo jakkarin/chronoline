@@ -36,24 +36,24 @@ No backend. No auth. Timeline data stays in the browser.
 Requirements:
 
 - Node.js
-- npm
+- pnpm
 
 Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 Start the development server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Run lint:
 
 ```bash
-npm run lint
+pnpm run lint
 ```
 
 Run type-checking:
@@ -65,7 +65,7 @@ npx tsc --noEmit
 Create a production build:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 ## How It Works
