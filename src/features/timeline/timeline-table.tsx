@@ -26,6 +26,8 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { DeferredInput } from '@/components/deferred-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useTaskSelectionStore } from '@/store/selection-store';
 import type { Project, Task } from '@/lib/types';
 
 const dndAccessibility = typeof document === 'undefined'
@@ -222,6 +224,10 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
     [taskIdsKey],
   );
 
+  const selectedInProject = useTaskSelectionStore((s) => taskIds.filter((id) => s.selectedIds.has(id)).length);
+  const setManySelected = useTaskSelectionStore((s) => s.setMany);
+  const allSelected = taskIds.length > 0 && selectedInProject === taskIds.length;
+
   const pRange = useMemo(() => {
     const dates = project.tasks.flatMap((t) => [t.startDate, t.endDate]).filter(Boolean);
     if (!dates.length) return null;
@@ -254,6 +260,14 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
         <td className={`${freeze ? 'sticky left-49 z-2' : ''} bg-inherit border-b border-r border-border`} />
         <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-inherit border-b border-r-2 border-border min-w-65`}>
           <div className="flex items-center px-2 py-1 gap-1">
+            <Checkbox
+              className="mr-1"
+              checked={allSelected}
+              indeterminate={selectedInProject > 0 && !allSelected}
+              disabled={taskIds.length === 0}
+              onCheckedChange={() => setManySelected(taskIds, !allSelected)}
+              aria-label={`Select all tasks in ${project.name}`}
+            />
             <button
               onClick={() => updateProject(project.id, { expanded: !project.expanded })}
               className="text-muted-foreground hover:text-foreground p-0.5 rounded"
@@ -372,6 +386,8 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
   const updateTask = useTimelineStore((s) => s.updateTask);
   const addTask = useTimelineStore((s) => s.addTask);
   const deleteTask = useTimelineStore((s) => s.deleteTask);
+  const isSelected = useTaskSelectionStore((s) => s.selectedIds.has(task.id));
+  const toggleSelected = useTaskSelectionStore((s) => s.toggle);
 
   const startCol = colIndexFromDate(task.startDate, cols) ?? 0;
   const endCol = colIndexFromDate(task.endDate, cols) ?? 0;
@@ -435,7 +451,13 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
       </td>
       <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-background border-b border-r-2 border-border`}>
         <div className="flex items-center pl-8 pr-2 relative">
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 w-2 h-px bg-border" />
+          <Checkbox
+            className="absolute left-2 top-1/2 -translate-y-1/2"
+            checked={isSelected}
+            onCheckedChange={() => toggleSelected(task.id)}
+            aria-label={`Select task ${task.name}`}
+          />
+          <span className="absolute left-6.5 top-1/2 -translate-y-1/2 w-1.5 h-px bg-border" />
           <DeferredInput
             className="w-full bg-transparent outline-none text-[12px] py-1 min-w-0 hover:bg-muted/30 focus:bg-background focus:ring-1 focus:ring-inset focus:ring-foreground/30 rounded px-1"
             value={task.name}
