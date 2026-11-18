@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { bulkStartDatePatch } from '@/lib/bulk-edit';
+import { bulkStartDatePatch, bulkPickerMonth } from '@/lib/bulk-edit';
+import type { Project } from '@/lib/types';
 
 const t = (startDate: string, endDate: string) => ({ startDate, endDate });
 
@@ -25,4 +26,18 @@ describe('bulkStartDatePatch', () => {
   it('treats an empty end as before start', () =>
     expect(bulkStartDatePatch(t('', ''), '2026-11-18'))
       .toEqual(t('2026-11-18', '2026-11-19')));
+});
+
+describe('bulkPickerMonth', () => {
+  const projects = [
+    { tasks: [{ id: 't_1', startDate: '2026-05-12' }, { id: 't_2', startDate: '2026-04-28' }] },
+    { tasks: [{ id: 't_3', startDate: '2026-06-01' }, { id: 't_4', startDate: '' }] },
+  ] as unknown as Project[];
+
+  it('opens on the earliest start date among the selected tasks', () =>
+    expect(bulkPickerMonth(projects, ['t_1', 't_3', 't_2'], '2026-01-05')).toBe('2026-04-28'));
+  it('ignores selected tasks without a start date', () =>
+    expect(bulkPickerMonth(projects, ['t_4', 't_3'], '2026-01-05')).toBe('2026-06-01'));
+  it('falls back to the timeline start when no selected task has a start date', () =>
+    expect(bulkPickerMonth(projects, ['t_4'], '2026-01-05')).toBe('2026-01-05'));
 });

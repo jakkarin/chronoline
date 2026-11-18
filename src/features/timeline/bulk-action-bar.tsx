@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useTimelineStore } from '@/store/timeline-store';
 import { selectExistingIds, useTaskSelectionStore } from '@/store/selection-store';
+import { bulkPickerMonth } from '@/lib/bulk-edit';
 
 /** Floating bar shown while tasks are ticked: set one start date on all of them. */
 export function BulkActionBar() {
@@ -31,6 +32,7 @@ export function BulkActionBar() {
           <DatePicker
             value=""
             placeholder="Start date"
+            defaultMonth={timeline ? bulkPickerMonth(timeline.projects, ids, timeline.startDate) : undefined}
             onChange={(date) => setTasksStartDate(ids, date)}
             className="w-auto border border-border"
           />
