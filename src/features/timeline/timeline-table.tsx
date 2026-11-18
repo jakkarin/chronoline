@@ -40,6 +40,10 @@ const disableRowLayoutAnimation: AnimateLayoutChanges = () => false;
 
 // ─── Project Row ────────────────────────────────────────────────────────────
 
+// Opaque version of the project row's `bg-muted/30` so frozen (sticky) cells hide
+// the columns scrolling underneath instead of letting them show through.
+const PROJECT_ROW_STICKY_BG = 'bg-[color-mix(in_oklab,var(--color-muted)_30%,var(--color-background))]';
+
 interface ProjectRowProps {
   project: Project;
   cols: ReturnType<typeof generateColumns>;
@@ -74,7 +78,7 @@ const ProjectTimelineCells = React.memo(function ProjectTimelineCells({
             key={c.dateStr}
             className={[
               'relative h-9 border-b border-r border-border',
-              isWkStart ? 'border-l-2' : '',
+              isWkStart ? 'border-l' : '',
               isHol ? 'bg-yellow-50 dark:bg-yellow-950/20' : '',
               isTod ? 'bg-red-50/30 dark:bg-red-950/10' : '',
             ].join(' ')}
@@ -168,7 +172,7 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
             key={c.dateStr}
             className={[
               'relative h-9 border-b border-r border-border',
-              isWkStart ? 'border-l-2' : '',
+              isWkStart ? 'border-l' : '',
               isHol ? 'bg-yellow-50 dark:bg-yellow-950/20' : '',
               isTod ? 'bg-red-50/30 dark:bg-red-950/10' : '',
             ].join(' ')}
@@ -249,7 +253,7 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
       className="group/project"
     >
       <tr className="bg-muted/30 font-semibold text-[12px]">
-        <td className={`${freeze ? 'sticky left-0 z-2' : ''} bg-inherit border-b border-r border-border`}>
+        <td className={`${freeze ? 'sticky left-0 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r border-border`}>
           <div className="flex items-center px-3 py-1">
             <StatusPicker
               value={project.status}
@@ -257,9 +261,9 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
             />
           </div>
         </td>
-        <td className={`${freeze ? 'sticky left-27.5 z-2' : ''} bg-inherit border-b border-r border-border`} />
-        <td className={`${freeze ? 'sticky left-49 z-2' : ''} bg-inherit border-b border-r border-border`} />
-        <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-inherit border-b border-r-2 border-border min-w-65`}>
+        <td className={`${freeze ? 'sticky left-27.5 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r border-border`} />
+        <td className={`${freeze ? 'sticky left-49 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r border-border`} />
+        <td className={`${freeze ? 'sticky left-66 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r-2 border-border min-w-65`}>
           <div className="flex items-center px-2 py-1 gap-1">
             <Checkbox
               className="mr-1"
@@ -777,8 +781,10 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
       accessibility={dndAccessibility}
     >
       <div ref={tableRef} className={`table-scroll flex-1 overflow-auto relative ${hasSelection ? 'pb-20' : ''}`} data-table-wrap>
+        {/* border-separate, not border-collapse: collapsed borders are painted by the table,
+            so frozen (sticky) cells would let scrolled content show through their edges. */}
         <table
-          className="border-collapse text-[12px]"
+          className="border-separate border-spacing-0 text-[12px]"
           style={{ width: 'max-content', minWidth: '100%' }}
         >
           <thead className="sticky top-0 z-10">
@@ -808,7 +814,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
                 colSpan={w.span}
                 className={[
                   'bg-muted border-b border-r border-border text-center text-[10px] font-mono text-muted-foreground py-1.5',
-                  w.weekIndex > 0 ? 'border-l-2' : '',
+                  w.weekIndex > 0 ? 'border-l' : '',
                 ].join(' ')}
               >
                 <div className="leading-tight">Wk {w.weekIndex + 1}</div>
@@ -829,7 +835,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
                     'bg-muted border-b-2 border-r border-border text-center font-mono text-[10px] py-1',
                     'w-8 min-w-8',
                     isTod ? 'text-red-500 font-semibold bg-red-50 dark:bg-red-950/20' : 'text-muted-foreground',
-                    isWkStart ? 'border-l-2' : '',
+                    isWkStart ? 'border-l' : '',
                   ].join(' ')}
                 >
                   {c.date.getDate()}
