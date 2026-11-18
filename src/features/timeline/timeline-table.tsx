@@ -27,7 +27,7 @@ import { DeferredInput } from '@/components/deferred-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useTaskSelectionStore } from '@/store/selection-store';
+import { selectExistingIds, useTaskSelectionStore } from '@/store/selection-store';
 import type { Project, Task } from '@/lib/types';
 
 const dndAccessibility = typeof document === 'undefined'
@@ -593,6 +593,8 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
   );
 
   const projects = timeline?.projects;
+  // Leave room below the last row for the floating bulk action bar while it is shown.
+  const hasSelection = useTaskSelectionStore((s) => selectExistingIds(s.selectedIds, timeline).length > 0);
 
   // Compute a stable string key of owners so the array identity only changes
   // when the actual owner set changes (not on every keystroke).
@@ -771,7 +773,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
       onDragEnd={handleDragEnd}
       accessibility={dndAccessibility}
     >
-      <div ref={tableRef} className="table-scroll flex-1 overflow-auto relative" data-table-wrap>
+      <div ref={tableRef} className={`table-scroll flex-1 overflow-auto relative ${hasSelection ? 'pb-20' : ''}`} data-table-wrap>
         <table
           className="border-collapse text-[12px]"
           style={{ width: 'max-content', minWidth: '100%' }}
