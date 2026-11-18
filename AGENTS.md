@@ -119,6 +119,9 @@ npx tsc --noEmit
 # Lint
 npm run lint
 
+# Unit tests (Vitest)
+npm test
+
 # Build
 npm run build
 ```

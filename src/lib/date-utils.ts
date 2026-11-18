@@ -6,6 +6,7 @@ import {
   isWeekend,
   isToday as dfnsIsToday,
   isSameDay,
+  nextMonday,
 } from 'date-fns';
 
 export interface DateColumn {
@@ -66,6 +67,23 @@ export function colIndexFromDate(dateStr: string, cols: DateColumn[]): number | 
 
 export function isSameDayStr(a: string, b: Date): boolean {
   return isSameDay(parseISO(a), b);
+}
+
+/** "30 Nov - 4 Dec 2026" for the Mon–Fri week starting on `monday`. */
+export function getWeekRangeLabel(monday: Date): string {
+  return `${format(monday, 'd MMM')} - ${format(addDays(monday, 4), 'd MMM yyyy')}`;
+}
+
+/** Saturday/Sunday → the following Monday; weekdays are returned unchanged. */
+export function snapToWeekday(dateStr: string): string {
+  const date = parseISO(dateStr);
+  return isWeekend(date) ? format(nextMonday(date), 'yyyy-MM-dd') : dateStr;
+}
+
+/** The next Mon–Fri day after `dateStr` (Fri/Sat/Sun → Monday). Holidays are not skipped. */
+export function nextWeekday(dateStr: string): string {
+  const next = addDays(parseISO(dateStr), 1);
+  return format(isWeekend(next) ? nextMonday(next) : next, 'yyyy-MM-dd');
 }
 
 export const DAY_LABELS = ['M', 'T', 'W', 'T', 'F'];
