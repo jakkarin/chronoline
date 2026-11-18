@@ -16,7 +16,7 @@ import {
 import type { AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, GripVertical, Trash2, Plus, AlertTriangle } from 'lucide-react';
-import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, colIndexFromDate, getWeekRangeLabel } from '@/lib/date-utils';
+import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, barColumnRange, getWeekRangeLabel } from '@/lib/date-utils';
 import { useTimelineStore } from '@/store/timeline-store';
 import { StatusPicker } from './status-picker';
 import { PriorityPicker } from './priority-picker';
@@ -176,7 +176,7 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
             {isTod && (
               <div className="absolute inset-y-0 left-1/2 w-px bg-red-500/40 z-0" />
             )}
-            {k === startCol && (
+            {k === startCol && startCol !== -1 && (
               <GanttBar
                 startCol={0}
                 endCol={endCol - startCol}
@@ -235,8 +235,9 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
     return { start: sorted[0], end: sorted[sorted.length - 1] };
   }, [project.tasks]);
 
-  const pStartCol = pRange ? (colIndexFromDate(pRange.start, cols) ?? 0) : -1;
-  const pEndCol = pRange ? (colIndexFromDate(pRange.end, cols) ?? cols.length - 1) : -1;
+  const pCols = pRange ? barColumnRange(pRange.start, pRange.end, cols) : null;
+  const pStartCol = pCols?.startCol ?? -1;
+  const pEndCol = pCols?.endCol ?? -1;
   const pDays = pRange ? workingDaysBetween(pRange.start, pRange.end, holidays) : 0;
 
   const totalCols = 11 + cols.length;
@@ -389,8 +390,10 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
   const isSelected = useTaskSelectionStore((s) => s.selectedIds.has(task.id));
   const toggleSelected = useTaskSelectionStore((s) => s.toggle);
 
-  const startCol = colIndexFromDate(task.startDate, cols) ?? 0;
-  const endCol = colIndexFromDate(task.endDate, cols) ?? 0;
+  // -1 when no part of the task is on a visible column: no bar is drawn.
+  const barCols = barColumnRange(task.startDate, task.endDate, cols);
+  const startCol = barCols?.startCol ?? -1;
+  const endCol = barCols?.endCol ?? -1;
   const days = workingDaysBetween(task.startDate, task.endDate, holidays);
 
   const handleBarUpdate = useCallback((ns: number, ne: number) => {

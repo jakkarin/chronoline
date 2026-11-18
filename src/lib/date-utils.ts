@@ -65,6 +65,23 @@ export function colIndexFromDate(dateStr: string, cols: DateColumn[]): number | 
   return idx === -1 ? null : idx;
 }
 
+/**
+ * Grid columns a bar should cover. The grid only has Mon–Fri columns for a fixed
+ * range, so a weekend or out-of-range date clamps to the nearest visible weekday
+ * inside the bar. Returns null when no part of the bar falls on a visible column.
+ */
+export function barColumnRange(
+  startDate: string,
+  endDate: string,
+  cols: DateColumn[]
+): { startCol: number; endCol: number } | null {
+  if (!startDate || !endDate) return null;
+  const startCol = cols.findIndex((c) => c.dateStr >= startDate);
+  const endCol = cols.findLastIndex((c) => c.dateStr <= endDate);
+  if (startCol === -1 || endCol === -1 || startCol > endCol) return null;
+  return { startCol, endCol };
+}
+
 export function isSameDayStr(a: string, b: Date): boolean {
   return isSameDay(parseISO(a), b);
 }
