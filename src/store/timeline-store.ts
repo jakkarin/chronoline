@@ -4,6 +4,7 @@ import { produce } from 'immer';
 import { getTimelineAdapter } from '@/lib/timeline-adapters';
 import type { Timeline, TimelineMeta, Project, Task } from '@/lib/types';
 import { newId } from '@/lib/id';
+import { bulkStartDatePatch } from '@/lib/bulk-edit';
 import type { EditorSession } from '@/lib/timeline-file';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -22,6 +23,7 @@ interface TimelineStore {
   addTask: (projectId: string, afterTaskId?: string) => string | undefined;
   updateTask: (projectId: string, taskId: string, patch: Partial<Task>) => void;
   deleteTask: (projectId: string, taskId: string) => void;
+  setTasksStartDate: (taskIds: string[], date: string) => void;
   moveProject: (fromIdx: number, toIdx: number) => void;
   moveTask: (fromProjectId: string, fromIdx: number, toProjectId: string, toIdx: number) => void;
   toggleHoliday: (date: string) => void;
@@ -131,6 +133,20 @@ export const useTimelineStore = create<TimelineStore>()(
           produce((state: TimelineStore) => {
             const p = state.timeline?.projects.find((x) => x.id === projectId);
             if (p) p.tasks = p.tasks.filter((t) => t.id !== taskId);
+          })
+        ),
+
+      // One set() call so the whole bulk edit is a single undo step.
+      setTasksStartDate: (taskIds, date) =>
+        set(
+          produce((state: TimelineStore) => {
+            if (!state.timeline || taskIds.length === 0) return;
+            const ids = new Set(taskIds);
+            for (const project of state.timeline.projects) {
+              for (const task of project.tasks) {
+                if (ids.has(task.id)) Object.assign(task, bulkStartDatePatch(task, date));
+              }
+            }
           })
         ),
 
