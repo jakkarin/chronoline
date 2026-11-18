@@ -266,7 +266,7 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
         <td className={`${freeze ? 'sticky left-66 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r-2 border-border min-w-65`}>
           <div className="flex items-center px-2 py-1 gap-1">
             <Checkbox
-              className="mr-1"
+              className="mr-1 after:-inset-x-1.5"
               checked={allSelected}
               indeterminate={selectedInProject > 0 && !allSelected}
               disabled={taskIds.length === 0}
@@ -459,7 +459,7 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
       <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-background border-b border-r-2 border-border`}>
         <div className="flex items-center pl-8 pr-2 relative">
           <Checkbox
-            className="absolute left-2 top-1/2 -translate-y-1/2"
+            className="absolute left-2 top-1/2 -translate-y-1/2 after:-inset-x-1.5"
             checked={isSelected}
             onCheckedChange={() => toggleSelected(task.id)}
             aria-label={`Select task ${task.name}`}
