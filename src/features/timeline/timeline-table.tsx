@@ -16,7 +16,7 @@ import {
 import type { AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, GripVertical, Trash2, Plus, AlertTriangle } from 'lucide-react';
-import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, colIndexFromDate } from '@/lib/date-utils';
+import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, colIndexFromDate, getWeekRangeLabel } from '@/lib/date-utils';
 import { useTimelineStore } from '@/store/timeline-store';
 import { StatusPicker } from './status-picker';
 import { PriorityPicker } from './priority-picker';
@@ -730,13 +730,13 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const totalCols = 11 + cols.length;
 
-  const weekGroups: { weekIndex: number; span: number }[] = [];
+  const weekGroups: { weekIndex: number; span: number; monday: Date }[] = [];
   let wi = 0;
   while (wi < cols.length) {
     const w = cols[wi].weekIndex;
     let j = wi;
     while (j < cols.length && cols[j].weekIndex === w) j++;
-    weekGroups.push({ weekIndex: w, span: j - wi });
+    weekGroups.push({ weekIndex: w, span: j - wi, monday: cols[wi].date });
     wi = j;
   }
 
@@ -784,7 +784,10 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
                   w.weekIndex > 0 ? 'border-l-2' : '',
                 ].join(' ')}
               >
-                Wk {w.weekIndex + 1}
+                <div className="leading-tight">Wk {w.weekIndex + 1}</div>
+                <div className="mt-0.5 text-[9px] leading-tight whitespace-nowrap text-muted-foreground/70">
+                  {getWeekRangeLabel(w.monday)}
+                </div>
               </th>
             ))}
           </tr>
