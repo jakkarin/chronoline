@@ -6,6 +6,8 @@ import { useAutosave } from '@/hooks/use-autosave';
 import { EditorHeader } from '@/features/timeline/editor-header';
 import { Toolbar } from '@/features/timeline/toolbar';
 import { TimelineTable } from '@/features/timeline/timeline-table';
+import { BulkActionBar } from '@/features/timeline/bulk-action-bar';
+import { useTaskSelectionStore } from '@/store/selection-store';
 import { Button } from '@/components/ui/button';
 import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
 
@@ -20,8 +22,14 @@ export default function TimelineEditor() {
 
   useAutosave();
 
+  // Task selection is per-timeline UI state: drop it when leaving or switching timelines.
+  useEffect(() => () => useTaskSelectionStore.getState().clear(), [id]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !isEscapeHandledElsewhere(e)) {
+        useTaskSelectionStore.getState().clear();
+      }
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -86,6 +94,7 @@ export default function TimelineEditor() {
       <EditorHeader />
       <Toolbar freezeColumns={freezeColumns} onToggleFreeze={() => setFreezeColumns(f => !f)} />
       <TimelineTable freeze={freezeColumns} />
+      <BulkActionBar />
       <footer className="shrink-0 border-t border-border bg-background px-4 py-1.5 flex gap-4 text-[11px] text-muted-foreground font-mono" data-pdf-hide>
         <span>💡 Click cells to edit</span>
         <span>·</span>
@@ -99,4 +108,13 @@ export default function TimelineEditor() {
       </footer>
     </div>
   );
+}
+
+/** Esc belongs to an input being edited or an open popover before it clears the task selection. */
+function isEscapeHandledElsewhere(e: KeyboardEvent): boolean {
+  if (e.defaultPrevented) return true;
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return true;
+  if (active instanceof HTMLElement && active.isContentEditable) return true;
+  return document.querySelector('[data-slot="popover-content"][data-open]') !== null;
 }
