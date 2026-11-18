@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,14 +36,18 @@ export function TaskColorPicker({ value, priority, onChange }: TaskColorPickerPr
   const displayColor = resolveTaskBarColor(value, priority);
   const pickerColor = isHexTaskColor(value) ? value : displayColor;
   const [hexInput, setHexInput] = useState(pickerColor);
+  // Reset the hex field when the task's color changes from outside (preset pick, undo).
+  // Adjusting state during render avoids an extra effect pass:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [syncedPickerColor, setSyncedPickerColor] = useState(pickerColor);
+  if (syncedPickerColor !== pickerColor) {
+    setSyncedPickerColor(pickerColor);
+    setHexInput(pickerColor);
+  }
   const hexInputId = useId();
   const pendingRecentColorRef = useRef<TaskColor | null>(null);
   const normalizedHexInput = normalizeHexInput(hexInput);
   const isHexInputValid = HEX_TASK_COLOR_PATTERN.test(normalizedHexInput);
-
-  useEffect(() => {
-    setHexInput(pickerColor);
-  }, [pickerColor]);
 
   function queueRecentColor(nextValue: TaskColor | null) {
     pendingRecentColorRef.current = nextValue;

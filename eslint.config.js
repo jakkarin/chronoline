@@ -18,8 +18,8 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
-  },
-  {
+    // Overrides live in the same block as the plugins they configure: a block
+    // without `files` also matches .js files, where these plugins are not loaded.
     rules: {
       'react-hooks/exhaustive-deps': 'off',
       'react-refresh/only-export-components': 'warn',

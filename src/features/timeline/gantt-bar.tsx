@@ -95,7 +95,7 @@ export function GanttBar({
   );
 
   const commitDrag = useCallback(
-    (_clientX: number) => {
+    () => {
       if (!dragRef.current || !barRef.current || !onUpdate) return;
       const { origStart, origEnd, lastNs, lastNe } = dragRef.current;
       dragRef.current = null;
@@ -104,15 +104,9 @@ export function GanttBar({
     [onUpdate]
   );
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => commitDrag(e.clientX),
-    [commitDrag]
-  );
+  const handlePointerUp = useCallback(() => commitDrag(), [commitDrag]);
 
-  const handlePointerCancel = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => commitDrag(e.clientX),
-    [commitDrag]
-  );
+  const handlePointerCancel = useCallback(() => commitDrag(), [commitDrag]);
 
   return (
     <div

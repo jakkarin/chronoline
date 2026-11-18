@@ -9,25 +9,25 @@ export function useTimeline(id: string | undefined) {
   const setTimeline = useTimelineStore((s) => s.setTimeline);
   const setEditorSession = useTimelineStore((s) => s.setEditorSession);
   const { syncFromTimeline } = useRecentTaskColors();
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
   const location = useLocation();
   const directEdit = (location.state as DirectEditNavigationState | null)?.directEdit;
+  // Outcome of the last finished load, tagged with what it loaded. `loading` is derived
+  // from whether that tag matches the current request, so nothing resets state in the effect.
+  const [result, setResult] = useState<{
+    id: string | undefined;
+    directEdit: typeof directEdit;
+    notFound: boolean;
+  } | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    setNotFound(false);
-
     void loadTimelineSession({ id, navigationState: directEdit ? { directEdit } : null }).then((loaded) => {
-      if (!loaded) {
-        setNotFound(true);
-      } else {
+      if (loaded) {
         syncFromTimeline(loaded.timeline);
         setTimeline(loaded.timeline);
         setEditorSession(loaded.session);
         useTimelineStore.temporal.getState().clear();
       }
-      setLoading(false);
+      setResult({ id, directEdit, notFound: !loaded });
     });
 
     return () => {
@@ -37,5 +37,6 @@ export function useTimeline(id: string | undefined) {
     };
   }, [directEdit, id, setEditorSession, setTimeline, syncFromTimeline]);
 
-  return { loading, notFound };
+  const isCurrent = result !== null && result.id === id && result.directEdit === directEdit;
+  return { loading: !isCurrent, notFound: isCurrent && result.notFound };
 }
