@@ -37,3 +37,11 @@ describe('parseImportJSON links', () => {
     expect(r.timeline.projects[0].tasks[0].dependsOn).toBeUndefined();
   });
 });
+
+describe('parseImportJSON tasks without color', () => {
+  it('imports tasks that have no color key (e.g. sample data exported as-is)', () => {
+    const t = task('t_1') as Record<string, unknown>;
+    delete t.color;
+    expect(() => parseImportJSON(envelope([project([t])]))).not.toThrow();
+  });
+});

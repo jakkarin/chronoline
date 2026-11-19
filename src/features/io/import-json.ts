@@ -18,7 +18,7 @@ const TaskSchema: z.ZodType<Task> = z.object({
   name: z.string(),
   status: z.enum(['Not Started', 'In Progress', 'Done', 'Blocked', 'On Hold']),
   priority: z.enum(['HIGHEST', 'HIGH', 'MED', 'LOW', 'LOWEST']).nullable(),
-  color: TaskColorSchema,
+  color: TaskColorSchema.optional(), // older data and the sample timeline have no color key
   owner: z.string(),
   startDate: z.string(),
   endDate: z.string(),
