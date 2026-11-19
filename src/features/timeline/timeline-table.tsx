@@ -23,6 +23,7 @@ import { PriorityPicker } from './priority-picker';
 import { TaskColorPicker } from './task-color-picker';
 import { GanttBar } from './gantt-bar';
 import { requestDateChange } from './request-date-change';
+import { DependencyLines } from './dependency-lines';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DeferredInput } from '@/components/deferred-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -105,6 +106,7 @@ const ProjectTimelineCells = React.memo(function ProjectTimelineCells({
 });
 
 interface TaskTimelineCellsProps {
+  taskId: string;
   cols: ReturnType<typeof generateColumns>;
   holidays: string[];
   label: string;
@@ -152,6 +154,7 @@ function DragPreview({ item }: { item: ActiveDragItem }) {
 }
 
 const TaskTimelineCells = React.memo(function TaskTimelineCells({
+  taskId,
   cols,
   holidays,
   label,
@@ -190,6 +193,7 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
                 taskColor={taskColor}
                 label={label}
                 percent={percent}
+                taskId={taskId}
                 onUpdate={onUpdate}
               />
             )}
@@ -568,6 +572,7 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
         </Popover>
       </td>
       <TaskTimelineCells
+        taskId={task.id}
         cols={cols}
         holidays={holidays}
         label={task.name}
@@ -783,6 +788,8 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
       accessibility={dndAccessibility}
     >
       <div ref={tableRef} className={`table-scroll flex-1 overflow-auto relative ${hasSelection ? 'pb-20' : ''}`} data-table-wrap>
+        {/* Before the table so bars (later in the DOM, same z-index) paint above the lines. */}
+        <DependencyLines containerRef={tableRef} />
         {/* border-separate, not border-collapse: collapsed borders are painted by the table,
             so frozen (sticky) cells would let scrolled content show through their edges. */}
         <table

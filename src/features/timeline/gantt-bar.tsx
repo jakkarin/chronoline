@@ -13,6 +13,8 @@ interface GanttBarProps {
   label: string;
   percent?: number;
   isProject?: boolean;
+  /** Set on task bars so link lines and link-drag can find them. */
+  taskId?: string;
   onUpdate?: (newStart: number, newEnd: number) => void;
 }
 
@@ -25,6 +27,7 @@ export function GanttBar({
   label,
   percent = 0,
   isProject = false,
+  taskId,
   onUpdate,
 }: GanttBarProps) {
   const dragRef = useRef<{
@@ -115,6 +118,7 @@ export function GanttBar({
   return (
     <div
       ref={barRef}
+      data-bar-task-id={taskId}
       onClick={() => { if (!isProject && onUpdate) setSelected(true); }}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
