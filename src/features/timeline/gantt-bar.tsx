@@ -99,9 +99,13 @@ export function GanttBar({
       if (!dragRef.current || !barRef.current || !onUpdate) return;
       const { origStart, origEnd, lastNs, lastNe } = dragRef.current;
       dragRef.current = null;
+      // Put the bar back where its props say. If the change applies, new props move it;
+      // if it waits for (or is cancelled in) the "Extend timeline?" dialog, it stays put.
+      barRef.current.style.left = `${startCol * CELL_WIDTH + 2}px`;
+      barRef.current.style.width = `${(endCol - startCol + 1) * CELL_WIDTH - 4}px`;
       if (lastNs !== origStart || lastNe !== origEnd) onUpdate(lastNs, lastNe);
     },
-    [onUpdate]
+    [onUpdate, startCol, endCol]
   );
 
   const handlePointerUp = useCallback(() => commitDrag(), [commitDrag]);

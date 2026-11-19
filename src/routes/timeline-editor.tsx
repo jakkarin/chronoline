@@ -7,6 +7,7 @@ import { EditorHeader } from '@/features/timeline/editor-header';
 import { Toolbar } from '@/features/timeline/toolbar';
 import { TimelineTable } from '@/features/timeline/timeline-table';
 import { BulkActionBar } from '@/features/timeline/bulk-action-bar';
+import { OverflowDialog } from '@/features/timeline/overflow-dialog';
 import { useTaskSelectionStore } from '@/store/selection-store';
 import { Button } from '@/components/ui/button';
 import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
@@ -95,6 +96,7 @@ export default function TimelineEditor() {
       <Toolbar freezeColumns={freezeColumns} onToggleFreeze={() => setFreezeColumns(f => !f)} />
       <TimelineTable freeze={freezeColumns} />
       <BulkActionBar />
+      <OverflowDialog />
       <footer className="shrink-0 border-t border-border bg-background px-4 py-1.5 flex gap-4 text-[11px] text-muted-foreground font-mono" data-pdf-hide>
         <span>💡 Click cells to edit</span>
         <span>·</span>

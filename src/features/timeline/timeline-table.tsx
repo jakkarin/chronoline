@@ -22,6 +22,7 @@ import { StatusPicker } from './status-picker';
 import { PriorityPicker } from './priority-picker';
 import { TaskColorPicker } from './task-color-picker';
 import { GanttBar } from './gantt-bar';
+import { requestDateChange } from './request-date-change';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DeferredInput } from '@/components/deferred-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -403,11 +404,12 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
   const handleBarUpdate = useCallback((ns: number, ne: number) => {
     const absNs = Math.max(0, Math.min(startCol + ns, cols.length - 1));
     const absNe = Math.max(0, Math.min(startCol + ne, cols.length - 1));
-    updateTask(projectId, task.id, {
-      startDate: cols[absNs]?.dateStr ?? task.startDate,
-      endDate: cols[absNe]?.dateStr ?? task.endDate,
+    requestDateChange({
+      kind: 'task',
+      taskId: task.id,
+      patch: { startDate: cols[absNs]?.dateStr ?? task.startDate, endDate: cols[absNe]?.dateStr ?? task.endDate },
     });
-  }, [cols, endCol, projectId, startCol, task.endDate, task.id, task.startDate, updateTask]);
+  }, [cols, endCol, startCol, task.endDate, task.id, task.startDate]);
 
   function handleTaskNameKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
@@ -494,13 +496,13 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
       <td className="border-b border-r border-border p-0">
         <DatePicker
           value={task.startDate}
-          onChange={(d) => updateTask(projectId, task.id, { startDate: d })}
+          onChange={(d) => requestDateChange({ kind: 'task', taskId: task.id, patch: { startDate: d } })}
         />
       </td>
       <td className="border-b border-r border-border p-0">
         <DatePicker
           value={task.endDate}
-          onChange={(d) => updateTask(projectId, task.id, { endDate: d })}
+          onChange={(d) => requestDateChange({ kind: 'task', taskId: task.id, patch: { endDate: d } })}
         />
       </td>
       <td className="border-b border-r border-border text-center text-[11px] font-mono text-muted-foreground">

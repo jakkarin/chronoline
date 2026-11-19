@@ -4,11 +4,11 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { useTimelineStore } from '@/store/timeline-store';
 import { selectExistingIds, useTaskSelectionStore } from '@/store/selection-store';
 import { bulkPickerMonth } from '@/lib/bulk-edit';
+import { requestDateChange } from './request-date-change';
 
 /** Floating bar shown while tasks are ticked: set one start date on all of them. */
 export function BulkActionBar() {
   const timeline = useTimelineStore((s) => s.timeline);
-  const setTasksStartDate = useTimelineStore((s) => s.setTasksStartDate);
   const selectedIds = useTaskSelectionStore((s) => s.selectedIds);
   const clear = useTaskSelectionStore((s) => s.clear);
 
@@ -33,7 +33,7 @@ export function BulkActionBar() {
             value=""
             placeholder="Start date"
             defaultMonth={timeline ? bulkPickerMonth(timeline.projects, ids, timeline.startDate) : undefined}
-            onChange={(date) => setTasksStartDate(ids, date)}
+            onChange={(date) => requestDateChange({ kind: 'bulkStart', taskIds: ids, date })}
             className="w-auto border border-border"
           />
           <Button variant="ghost" size="sm" onClick={clear} aria-label="Clear selection">
