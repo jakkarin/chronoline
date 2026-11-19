@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { HEX_TASK_COLOR_PATTERN, TASK_COLOR_VALUES } from '@/lib/task-colors';
+import { dropDanglingDependencies } from '@/lib/dependencies';
 import type { ParsedTimelineImport, Project, Task, TimelineVersion } from '@/lib/types';
 
 const PRESET_TASK_COLORS = new Set<string>(TASK_COLOR_VALUES);
@@ -23,6 +24,7 @@ const TaskSchema: z.ZodType<Task> = z.object({
   endDate: z.string(),
   deliverable: z.string(),
   percentComplete: z.number(),
+  dependsOn: z.array(z.object({ taskId: z.string(), follow: z.boolean() })).optional(),
 });
 
 const ProjectSchema: z.ZodType<Project> = z.object({
@@ -93,9 +95,13 @@ export function parseImportJSON(raw: string): ParsedTimelineImport {
       updatedAt: result.data.timeline.updatedAt,
       projectCount: result.data.timeline.projectCount,
       taskCount: result.data.timeline.taskCount,
-      projects: result.data.timeline.projects,
+      // Links are checked against the tasks of the same timeline / snapshot they belong to.
+      projects: dropDanglingDependencies(result.data.timeline.projects),
       holidays: result.data.timeline.holidays,
     },
-    versions: result.data.versions ?? [],
+    versions: (result.data.versions ?? []).map((v) => ({
+      ...v,
+      snapshot: { ...v.snapshot, projects: dropDanglingDependencies(v.snapshot.projects) },
+    })),
   };
 }
