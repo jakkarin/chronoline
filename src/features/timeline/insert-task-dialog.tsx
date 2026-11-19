@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { nextWeekday, snapToWeekday } from '@/lib/date-utils';
 import { shiftWeekdays, weekdayLength } from '@/lib/dependencies';
-import { insertCandidates, planInsert, type InsertInput } from '@/lib/insert-task';
+import { insertSelection, toggleInsertChoice, type InsertInput } from '@/lib/insert-task';
 import { visibleRange } from '@/lib/timeline-overflow';
 import { useTimelineStore } from '@/store/timeline-store';
 import { requestDateChange } from './request-date-change';
@@ -40,6 +40,9 @@ export function InsertTaskDialog({ open, onOpenChange }: InsertTaskDialogProps) 
   const [name, setName] = useState('New Task');
   const [owner, setOwner] = useState('');
   const [projectId, setProjectId] = useState(projects[0]?.id ?? '');
+  /** Once the user picks a project, choosing "Follows" no longer changes it. */
+  const [projectTouched, setProjectTouched] = useState(false);
+  const [followsOpen, setFollowsOpen] = useState(false);
   const [startDate, setStartDate] = useState(initialStart);
   const [endDate, setEndDate] = useState(initialStart);
   const [followsTaskId, setFollowsTaskId] = useState<string | null>(null);
@@ -51,13 +54,13 @@ export function InsertTaskDialog({ open, onOpenChange }: InsertTaskDialogProps) 
   const input: InsertInput = { projectId, name: name.trim(), owner, startDate, endDate, followsTaskId };
   const tasks = useMemo(() => new Map(projects.flatMap((p) => p.tasks).map((t) => [t.id, t])), [projects]);
 
-  const { candidates, ticked, unticked, plan } = useMemo(() => {
-    const candidates = valid && shift ? insertCandidates(projects, input) : [];
-    const ticked = new Set(candidates.filter((c) => choice.get(c.taskId) ?? c.preTicked).map((c) => c.taskId));
-    const unticked = new Set([...choice].filter(([, v]) => !v).map(([id]) => id));
-    const plan = valid && shift ? planInsert(projects, input, ticked, unticked) : { patches: new Map(), followers: [] };
-    return { candidates, ticked, unticked, plan };
-  }, [projects, valid, shift, choice, projectId, startDate, endDate, followsTaskId]);
+  const { candidates, ticked, unticked, plan } = useMemo(
+    () =>
+      valid && shift
+        ? insertSelection(projects, input, choice)
+        : { candidates: [], ticked: new Set<string>(), unticked: new Set<string>(), plan: { patches: new Map(), followers: [] } },
+    [projects, valid, shift, choice, projectId, startDate, endDate, followsTaskId]
+  );
 
   // Rows: candidates plus any linked follower the cascade moves, grouped by project in table order.
   const followerOf = new Map(plan.followers.map((f) => [f.taskId, f.parentId]));
@@ -66,7 +69,7 @@ export function InsertTaskDialog({ open, onOpenChange }: InsertTaskDialogProps) 
     .map((p) => ({ project: p, rows: p.tasks.filter((t) => rowIds.has(t.id)) }))
     .filter((g) => g.rows.length > 0);
   const isChecked = (id: string) => ticked.has(id) || followerOf.has(id);
-  const toggle = (id: string) => setChoice((m) => new Map(m).set(id, !isChecked(id)));
+  const toggle = (id: string) => setChoice((m) => toggleInsertChoice(projects, input, m, id));
 
   const setStart = (d: string) => {
     const len = weekdayLength(startDate, endDate);
@@ -77,7 +80,12 @@ export function InsertTaskDialog({ open, onOpenChange }: InsertTaskDialogProps) 
   const follow = (parentId: string) => {
     const parent = tasks.get(parentId);
     setFollowsTaskId(parentId);
+    setFollowsOpen(false);
     if (!parent) return;
+    if (!projectTouched) {
+      const parentProject = projects.find((p) => p.tasks.some((t) => t.id === parentId));
+      if (parentProject) setProjectId(parentProject.id);
+    }
     const len = weekdayLength(startDate, endDate);
     const s = nextWeekday(parent.endDate);
     setStartDate(s);
@@ -108,7 +116,10 @@ export function InsertTaskDialog({ open, onOpenChange }: InsertTaskDialogProps) 
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Project</span>
-            <select className={field} value={projectId} onChange={(e) => setProjectId(e.target.value)} aria-label="Project">
+            <select className={field} value={projectId} onChange={(e) => {
+              setProjectId(e.target.value);
+              setProjectTouched(true);
+            }} aria-label="Project">
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </label>
@@ -119,7 +130,7 @@ export function InsertTaskDialog({ open, onOpenChange }: InsertTaskDialogProps) 
           <div className="col-span-2 flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Follows</span>
             <div className="flex items-center gap-1">
-              <Popover>
+              <Popover open={followsOpen} onOpenChange={setFollowsOpen}>
                 <PopoverTrigger className={`${field} flex items-center text-left`} aria-label="Follows">
                   {follows ? follows.name : <span className="text-muted-foreground">— none —</span>}
                 </PopoverTrigger>

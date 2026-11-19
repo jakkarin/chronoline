@@ -105,3 +105,36 @@ export function applyInsertToDraft(
   project.tasks.splice(at === -1 ? project.tasks.length : at, 0, task);
   project.expanded = true;
 }
+
+/**
+ * What the Insert dialog's tick-list resolves to. `choice` holds only explicit user
+ * clicks; candidates without one use `preTicked`, and an explicit `false` means
+ * "leave this task in place for this insert" (it also stops the cascade there).
+ */
+export function insertSelection(projects: Project[], input: InsertInput, choice: ReadonlyMap<string, boolean>) {
+  const candidates = insertCandidates(projects, input);
+  const ticked = new Set(candidates.filter((c) => choice.get(c.taskId) ?? c.preTicked).map((c) => c.taskId));
+  const unticked = new Set([...choice].filter(([, v]) => !v).map(([id]) => id));
+  const plan = planInsert(projects, input, ticked, unticked);
+  return { candidates, ticked, unticked, plan };
+}
+
+/**
+ * Flip one row. Ticking a 🔗 follower back on just drops the explicit "leave it", so
+ * it moves with its parent again (instead of becoming a directly shifted task).
+ */
+export function toggleInsertChoice(
+  projects: Project[],
+  input: InsertInput,
+  choice: ReadonlyMap<string, boolean>,
+  taskId: string
+): Map<string, boolean> {
+  const sel = insertSelection(projects, input, choice);
+  const checked = sel.ticked.has(taskId) || sel.plan.followers.some((f) => f.taskId === taskId);
+  const next = new Map(choice);
+  if (checked) return next.set(taskId, false);
+  next.delete(taskId);
+  const after = insertSelection(projects, input, next);
+  const nowChecked = after.ticked.has(taskId) || after.plan.followers.some((f) => f.taskId === taskId);
+  return nowChecked ? next : next.set(taskId, true);
+}

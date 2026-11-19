@@ -80,8 +80,13 @@ export function DependencyLines({ containerRef }: { containerRef: RefObject<HTML
         next.push({ childId: task.id, parentId: dep.taskId, follow: dep.follow, d: elbowPath(from.right, from.midY, to.left, to.midY) });
       }
     }
-    setLines(next);
-    setSize({ w: container.scrollWidth, h: container.scrollHeight });
+    // Text edits re-run this too; only update state when a line actually changed.
+    setLines((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    setSize((prev) =>
+      prev.w === container.scrollWidth && prev.h === container.scrollHeight ? prev : { w: container.scrollWidth, h: container.scrollHeight }
+    );
+    // A link removed elsewhere (row panel, undo) closes its panel so it can't pop back on redo.
+    setOpen((o) => (o && next.some((l) => l.childId === o.childId && l.parentId === o.parentId) ? o : null));
   }, [containerRef, timeline]);
 
   // Re-measure after every timeline change (dates, links, expand/collapse) and on resize.

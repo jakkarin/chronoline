@@ -22,6 +22,10 @@ interface TimelineStore {
   updateProject: (id: string, patch: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   addTask: (projectId: string, afterTaskId?: string) => string | undefined;
+  /**
+   * Edit task fields. Date fields still run the follow cascade but never ask about extending
+   * the timeline — UI code changing dates should call `requestDateChange` instead.
+   */
   updateTask: (projectId: string, taskId: string, patch: Partial<Task>) => void;
   deleteTask: (projectId: string, taskId: string) => void;
   setTasksStartDate: (taskIds: string[], date: string) => void;

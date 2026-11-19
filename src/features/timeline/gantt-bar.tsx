@@ -171,7 +171,7 @@ export function GanttBar({
           background: 'var(--color-background)',
           border: '2px solid var(--color-foreground)',
           cursor: 'crosshair',
-          zIndex: 3,
+          zIndex: 1, // below frozen columns (z-2); later in the DOM than the line layer, so above it
           touchAction: 'none',
         }}
       />

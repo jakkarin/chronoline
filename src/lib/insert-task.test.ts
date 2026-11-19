@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { insertCandidates, planInsert, type InsertInput } from '@/lib/insert-task';
+import { insertCandidates, planInsert, insertSelection, toggleInsertChoice, type InsertInput } from '@/lib/insert-task';
 import type { Project } from '@/lib/types';
 
 const t = (id: string, startDate: string, endDate: string, dependsOn?: { taskId: string; follow: boolean }[]) =>
@@ -57,5 +57,28 @@ describe('planInsert', () => {
     expect(r.patches.has('X')).toBe(false);
     expect(r.patches.has('Y')).toBe(false);
     expect(r.followers).toEqual([]);
+  });
+});
+
+describe('insert tick choices', () => {
+  it('re-ticking a linked follower returns it to following, not a direct shift', () => {
+    let choice = new Map<string, boolean>();
+    expect(insertSelection(projects(), input, choice).plan.followers.map((f) => f.taskId)).toContain('X');
+    choice = toggleInsertChoice(projects(), input, choice, 'X'); // untick
+    expect(insertSelection(projects(), input, choice).unticked.has('X')).toBe(true);
+    choice = toggleInsertChoice(projects(), input, choice, 'X'); // tick again
+    const sel = insertSelection(projects(), input, choice);
+    expect(sel.ticked.has('X')).toBe(false);
+    expect(sel.plan.followers.map((f) => f.taskId)).toContain('X');
+  });
+
+  it('a plain candidate toggles on, off, on', () => {
+    let choice = new Map<string, boolean>();
+    choice = toggleInsertChoice(projects(), input, choice, 'CL');
+    expect(insertSelection(projects(), input, choice).ticked.has('CL')).toBe(true);
+    choice = toggleInsertChoice(projects(), input, choice, 'CL');
+    expect(insertSelection(projects(), input, choice).ticked.has('CL')).toBe(false);
+    choice = toggleInsertChoice(projects(), input, choice, 'CL');
+    expect(insertSelection(projects(), input, choice).ticked.has('CL')).toBe(true);
   });
 });
