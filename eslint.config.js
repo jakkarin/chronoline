@@ -25,4 +25,12 @@ export default defineConfig([
       'react-refresh/only-export-components': 'warn',
     },
   },
+  {
+    // shadcn components are CLI-generated and export their cva variants (buttonVariants, …)
+    // next to the component by design; don't hand-edit them to satisfy this rule.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ]);

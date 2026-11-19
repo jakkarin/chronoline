@@ -13,15 +13,6 @@ const PRIORITY_OPTIONS: { value: Priority; label: string; color: string }[] = [
   { value: null,      label: '—',       color: '#a8a29e' },
 ];
 
-export const PRIORITY_COLOR: Record<string, string> = {
-  HIGHEST: '#dc2626',
-  HIGH: '#ea580c',
-  MED: '#ca8a04',
-  LOW: '#0891b2',
-  LOWEST: '#78716c',
-  NONE: '#78716c',
-};
-
 interface Props {
   value: Priority;
   onChange: (v: Priority) => void;

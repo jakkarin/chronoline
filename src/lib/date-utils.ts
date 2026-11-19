@@ -60,11 +60,6 @@ export function isHoliday(dateStr: string, holidays: string[]): boolean {
   return holidays.includes(dateStr);
 }
 
-export function colIndexFromDate(dateStr: string, cols: DateColumn[]): number | null {
-  const idx = cols.findIndex((c) => c.dateStr === dateStr);
-  return idx === -1 ? null : idx;
-}
-
 /**
  * Grid columns a bar should cover. The grid only has Mon–Fri columns for a fixed
  * range, so a weekend or out-of-range date clamps to the nearest visible weekday

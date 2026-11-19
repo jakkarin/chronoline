@@ -12,7 +12,7 @@ const STATUS_OPTIONS: { value: Status; color: string }[] = [
   { value: 'On Hold',     color: '#ca8a04' },
 ];
 
-export const STATUS_COLOR: Record<Status, string> = Object.fromEntries(
+const STATUS_COLOR: Record<Status, string> = Object.fromEntries(
   STATUS_OPTIONS.map((s) => [s.value, s.color])
 ) as Record<Status, string>;
 
