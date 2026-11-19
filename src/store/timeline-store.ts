@@ -173,7 +173,7 @@ export const useTimelineStore = create<TimelineStore>()(
         const next = applyDateEdit(before, edit);
         const info = overflowInfo(before, next);
         if (info && !choice) return info;
-        set({ timeline: info && choice ? resolveOverflow(next, choice) : next });
+        set({ timeline: info && choice ? resolveOverflow(before, next, choice) : next });
         return null;
       },
 

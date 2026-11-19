@@ -171,3 +171,26 @@ describe('insert', () => {
     expect(datesOf('B')).toEqual(['2026-06-25', '2026-06-26']);
   });
 });
+
+describe('overflow ignores tasks that were already past the edge', () => {
+  beforeEach(() => {
+    const t = depTimeline();
+    t.projects[0].tasks.push(task('LATE', '2026-07-06', '2026-07-10')); // already beyond 3 Jul
+    st().setTimeline(t);
+    useTimelineStore.temporal.getState().clear();
+  });
+
+  it('an unrelated edit applies without asking and leaves the late task alone', () => {
+    expect(st().commitDateChange({ kind: 'task', taskId: 'C', patch: { endDate: '2026-06-30' } })).toBeNull();
+    expect(datesOf('C')).toEqual(['2026-06-29', '2026-06-30']);
+    expect(datesOf('LATE')).toEqual(['2026-07-06', '2026-07-10']);
+  });
+
+  it('stopAtEdge clamps only tasks this edit pushed out', () => {
+    const info = st().commitDateChange({ kind: 'task', taskId: 'C', patch: { endDate: '2026-07-07' } });
+    expect(info?.taskIds).toEqual(['C']);
+    st().commitDateChange({ kind: 'task', taskId: 'C', patch: { endDate: '2026-07-07' } }, 'stopAtEdge');
+    expect(datesOf('C')[1]).toBe('2026-07-03');
+    expect(datesOf('LATE')).toEqual(['2026-07-06', '2026-07-10']);
+  });
+});

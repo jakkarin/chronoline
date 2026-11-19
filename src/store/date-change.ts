@@ -66,9 +66,24 @@ export function applyDateEdit(timeline: Timeline, edit: DateEdit): Timeline {
   });
 }
 
+/**
+ * Tasks this edit pushed past the last visible day: new tasks, tasks that were inside
+ * the grid before, or tasks whose end the edit moved. Tasks that were already past the
+ * edge and untouched (e.g. after lowering the week count) don't count.
+ */
+function pushedOut(before: Timeline, next: Timeline): { taskIds: string[]; weeksNeeded: number } | null {
+  const { last } = visibleRange(next.startDate, next.weeks);
+  const beforeEnd = new Map(allTasks(before).map((t) => [t.id, t.endDate]));
+  const pushed = allTasks(next).filter((t) => {
+    const old = beforeEnd.get(t.id);
+    return t.endDate > last && (old === undefined || old <= last || old !== t.endDate);
+  });
+  return detectOverflow([{ tasks: pushed } as Timeline['projects'][number]], next.startDate, next.weeks);
+}
+
 /** Overflow details for `next` (already edited) relative to `before`, or null if it fits. */
 export function overflowInfo(before: Timeline, next: Timeline): OverflowInfo | null {
-  const ov = detectOverflow(next.projects, next.startDate, next.weeks);
+  const ov = pushedOut(before, next);
   if (!ov) return null;
   const range = visibleRange(next.startDate, next.weeks);
   const byId = new Map(allTasks(next).map((t) => [t.id, t]));
@@ -81,15 +96,16 @@ export function overflowInfo(before: Timeline, next: Timeline): OverflowInfo | n
   };
 }
 
-/** Resolve overflow in `next` per the user's choice. */
-export function resolveOverflow(next: Timeline, choice: OverflowChoice): Timeline {
-  const ov = detectOverflow(next.projects, next.startDate, next.weeks);
+/** Resolve overflow in `next` per the user's choice; only tasks this edit pushed out are clamped. */
+export function resolveOverflow(before: Timeline, next: Timeline, choice: OverflowChoice): Timeline {
+  const ov = pushedOut(before, next);
   if (!ov) return next;
+  const ids = new Set(ov.taskIds);
   return produce(next, (draft) => {
     if (choice === 'extend') draft.weeks = Math.min(MAX_WEEKS, Math.max(draft.weeks, ov.weeksNeeded));
     const range = visibleRange(draft.startDate, draft.weeks);
     for (const t of allTasks(draft)) {
-      if (t.endDate > range.last) Object.assign(t, stopAtEdge(t, range));
+      if (ids.has(t.id) && t.endDate > range.last) Object.assign(t, stopAtEdge(t, range));
     }
   });
 }
