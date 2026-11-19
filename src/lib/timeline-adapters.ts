@@ -133,7 +133,7 @@ const fileAdapter: TimelineStorageAdapter = {
     }
 
     await saveTimelineToFile({
-      timeline,
+      timeline: { ...timeline, updatedAt: Date.now() },
       fileHandle: session.fileHandle,
       versions: session.versions,
     });

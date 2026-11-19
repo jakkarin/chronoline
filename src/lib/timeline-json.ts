@@ -7,7 +7,12 @@ export function buildTimelineExportEnvelope(
   return {
     $schema: 'project-timeline/v1',
     exportedAt: new Date().toISOString(),
-    timeline,
+    // Counts are derived from the content so a saved file never carries stale ones.
+    timeline: {
+      ...timeline,
+      projectCount: timeline.projects.length,
+      taskCount: timeline.projects.reduce((sum, p) => sum + p.tasks.length, 0),
+    },
     versions,
   };
 }
