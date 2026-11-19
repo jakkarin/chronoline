@@ -146,3 +146,28 @@ describe('dependency actions', () => {
     expect(tl().projects[0].tasks.find((t) => t.id === 'B')!.dependsOn).toEqual([{ taskId: 'A', follow: true }]);
   });
 });
+
+describe('insert', () => {
+  beforeEach(() => {
+    st().setTimeline(depTimeline());
+    useTimelineStore.temporal.getState().clear();
+  });
+
+  it('insert is one undo step and places new task by date', () => {
+    // A 22–24 Jun, B (follows A) 25–26, C (follows B) 29. Insert 23–24 Jun, tick B.
+    const r = st().commitDateChange({ kind: 'insert', ticked: ['B'], unticked: [], input: {
+      projectId: 'p_1', name: 'Review', owner: 'Dee', startDate: '2026-06-23', endDate: '2026-06-24', followsTaskId: 'A' } });
+    expect(r).toBeNull();
+    const names = tl().projects[0].tasks.map((t) => t.name);
+    expect(names).toEqual(['A', 'Review', 'B', 'C']);
+    const review = tl().projects[0].tasks[1];
+    expect(review).toMatchObject({ status: 'Not Started', priority: 'MED', owner: 'Dee', startDate: '2026-06-23', endDate: '2026-06-24',
+      dependsOn: [{ taskId: 'A', follow: true }] });
+    expect(review.id.startsWith('t_')).toBe(true);
+    expect(datesOf('B')).toEqual(['2026-06-29', '2026-06-30']);
+    expect(datesOf('C')).toEqual(['2026-07-01', '2026-07-01']);
+    useTimelineStore.temporal.getState().undo();
+    expect(tl().projects[0].tasks.map((t) => t.name)).toEqual(['A', 'B', 'C']);
+    expect(datesOf('B')).toEqual(['2026-06-25', '2026-06-26']);
+  });
+});
