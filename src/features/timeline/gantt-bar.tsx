@@ -1,5 +1,9 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { LINK_REJECTION_MESSAGE } from '@/lib/dependencies';
 import { resolveTaskBarColor } from '@/lib/task-colors';
+import { useLinkDrag } from '@/store/link-drag';
+import { useTimelineStore } from '@/store/timeline-store';
 import type { Priority, TaskColor } from '@/lib/types';
 
 const CELL_WIDTH = 32;
@@ -40,6 +44,7 @@ export function GanttBar({
   } | null>(null);
 
   const barRef = useRef<HTMLDivElement>(null);
+  const dotRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(false);
 
   const span = endCol - startCol + 1;
@@ -51,7 +56,8 @@ export function GanttBar({
   useEffect(() => {
     if (!selected) return;
     const onOutside = (e: PointerEvent) => {
-      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (barRef.current && !barRef.current.contains(target) && !dotRef.current?.contains(target)) {
         setSelected(false);
       }
     };
@@ -115,7 +121,61 @@ export function GanttBar({
 
   const handlePointerCancel = useCallback(() => commitDrag(), [commitDrag]);
 
+  // Drag from the dot onto another bar to make that task follow this one.
+  const onDotDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!taskId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dotRef.current?.setPointerCapture(e.pointerId);
+    useLinkDrag.getState().set({ fromTaskId: taskId, x: e.clientX, y: e.clientY });
+  };
+  const onDotMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = useLinkDrag.getState().drag;
+    if (drag) useLinkDrag.getState().set({ ...drag, x: e.clientX, y: e.clientY });
+  };
+  const onDotUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = useLinkDrag.getState().drag;
+    useLinkDrag.getState().set(null);
+    if (!drag) return;
+    const targetId = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest<HTMLElement>('[data-bar-task-id]')?.dataset.barTaskId;
+    if (!targetId || targetId === drag.fromTaskId) return;
+    const result = useTimelineStore.getState().addDependency(targetId, drag.fromTaskId);
+    if (!result.ok) toast.error(LINK_REJECTION_MESSAGE[result.reason]);
+  };
+
+  const showDot = selected && !isProject && !!taskId;
+
   return (
+    <>
+    {showDot && (
+      <div
+        ref={dotRef}
+        role="button"
+        aria-label="Drag to link a task that follows this one"
+        title="Drag onto another bar to link"
+        data-link-dot
+        onPointerDown={onDotDown}
+        onPointerMove={onDotMove}
+        onPointerUp={onDotUp}
+        onPointerCancel={() => useLinkDrag.getState().set(null)}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: `${(startCol + span) * CELL_WIDTH - 1}px`,
+          width: 10,
+          height: 10,
+          transform: 'translateY(-50%)',
+          borderRadius: 9999,
+          background: 'var(--color-background)',
+          border: '2px solid var(--color-foreground)',
+          cursor: 'crosshair',
+          zIndex: 3,
+          touchAction: 'none',
+        }}
+      />
+    )}
     <div
       ref={barRef}
       data-bar-task-id={taskId}
@@ -210,5 +270,6 @@ export function GanttBar({
         </span>
       )}
     </div>
+    </>
   );
 }

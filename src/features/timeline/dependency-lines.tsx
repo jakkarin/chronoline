@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } fro
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useLinkDrag } from '@/store/link-drag';
 import { useTimelineStore } from '@/store/timeline-store';
 
 interface Line {
@@ -39,6 +40,23 @@ export function DependencyLines({ containerRef }: { containerRef: RefObject<HTML
   const [lines, setLines] = useState<Line[]>([]);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [open, setOpen] = useState<OpenLink | null>(null);
+  const linkDrag = useLinkDrag((s) => s.drag);
+  const [dragPath, setDragPath] = useState<string | null>(null);
+
+  // Temporary line while dragging from a bar's link dot, in content coordinates.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const fromBar = linkDrag && container?.querySelector<HTMLElement>(`[data-bar-task-id="${linkDrag.fromTaskId}"]`);
+    if (!linkDrag || !container || !fromBar) {
+      setDragPath(null);
+      return;
+    }
+    const c = container.getBoundingClientRect();
+    const r = fromBar.getBoundingClientRect();
+    const x1 = r.right - c.left + container.scrollLeft;
+    const y1 = r.top - c.top + container.scrollTop + r.height / 2;
+    setDragPath(`M ${x1} ${y1} L ${linkDrag.x - c.left + container.scrollLeft} ${linkDrag.y - c.top + container.scrollTop}`);
+  }, [containerRef, linkDrag]);
 
   const measure = useCallback(() => {
     const container = containerRef.current;
@@ -99,6 +117,9 @@ export function DependencyLines({ containerRef }: { containerRef: RefObject<HTML
             <path d="M0,0 L6,3 L0,6 z" fill="currentColor" />
           </marker>
         </defs>
+        {dragPath && (
+          <path d={dragPath} fill="none" stroke="currentColor" strokeWidth={1.5} strokeDasharray="4 3" markerEnd="url(#dep-arrow)" data-link-drag-line />
+        )}
         {lines.map((l) => (
           <g key={`${l.parentId}>${l.childId}`} data-link={`${l.parentId}>${l.childId}`}>
             <path
