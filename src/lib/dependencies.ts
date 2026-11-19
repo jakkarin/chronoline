@@ -67,6 +67,14 @@ export function wouldCreateCycle(projects: Project[], childId: string, parentId:
 
 export type LinkRejection = 'self' | 'duplicate' | 'cycle' | 'missing';
 
+/** User-facing text for a rejected link. */
+export const LINK_REJECTION_MESSAGE: Record<LinkRejection, string> = {
+  self: "A task can't follow itself",
+  duplicate: 'Already linked',
+  cycle: 'That link would create a loop',
+  missing: 'That task no longer exists',
+};
+
 export function canLink(
   projects: Project[],
   childId: string,

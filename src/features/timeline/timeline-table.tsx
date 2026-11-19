@@ -24,6 +24,7 @@ import { TaskColorPicker } from './task-color-picker';
 import { GanttBar } from './gantt-bar';
 import { requestDateChange } from './request-date-change';
 import { DependencyLines } from './dependency-lines';
+import { TaskLinksPanel } from './task-links-panel';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DeferredInput } from '@/components/deferred-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -480,6 +481,7 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
             data-task-name-input="true"
             data-task-id={task.id}
           />
+          <TaskLinksPanel taskId={task.id} />
         </div>
       </td>
       <td className="border-b border-r border-border">
