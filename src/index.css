@@ -212,6 +212,16 @@
     }
   body {
     @apply bg-background text-foreground;
+    /* App-like feel: no accidental text selection, no double-tap zoom (pinch-zoom still works). */
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
     }
   html {
     @apply font-sans;

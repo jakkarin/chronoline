@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import {
   Plus, Undo2, Redo2, CalendarDays, Download, Upload, Presentation,
   ArrowDown, ArrowUpDown, PanelLeftClose, PanelLeft, BookmarkPlus, History,
+  ListPlus,
 } from 'lucide-react';
 import { useStore } from 'zustand';
 import { useTimelineStore } from '@/store/timeline-store';
@@ -27,6 +28,7 @@ import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapt
 import { timelineRepo } from '@/lib/db/timelines';
 import type { ParsedTimelineImport } from '@/lib/types';
 import { toast } from 'sonner';
+import { InsertTaskDialog } from './insert-task-dialog';
 
 interface ToolbarProps {
   freezeColumns: boolean;
@@ -43,6 +45,9 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
   const [reorderOpen, setReorderOpen] = useState(false);
   const [saveVersionOpen, setSaveVersionOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [insertOpen, setInsertOpen] = useState(false);
+  // New key = fresh form; reopening after a cancelled "Extend timeline?" keeps the same key.
+  const [insertKey, setInsertKey] = useState(0);
   const [presentHtml, setPresentHtml] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<ParsedTimelineImport | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -159,6 +164,16 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
           variant="ghost"
           size="sm"
           className="h-7 text-xs gap-1.5"
+          onClick={() => { setInsertKey((k) => k + 1); setInsertOpen(true); }}
+          disabled={!timeline || timeline.projects.length === 0}
+          title="Insert a task and shift others to make room"
+        >
+          <ListPlus className="h-3.5 w-3.5" /> Insert task
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1.5"
           onClick={() => setReorderOpen(true)}
           disabled={!timeline}
           title="Reorder groups and tasks in a list view"
@@ -268,6 +283,7 @@ export function Toolbar({ freezeColumns, onToggleFreeze }: ToolbarProps) {
       </div>
 
       <HolidaysSheet open={holidaysOpen} onOpenChange={setHolidaysOpen} />
+      <InsertTaskDialog key={insertKey} open={insertOpen} onOpenChange={setInsertOpen} />
       {reorderOpen && <ReorderDialog open={reorderOpen} onOpenChange={setReorderOpen} />}
       <SaveVersionDialog open={saveVersionOpen} onOpenChange={setSaveVersionOpen} />
       <VersionHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />

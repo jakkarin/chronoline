@@ -16,16 +16,21 @@ import {
 import type { AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, GripVertical, Trash2, Plus, AlertTriangle } from 'lucide-react';
-import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, colIndexFromDate } from '@/lib/date-utils';
+import { generateColumns, workingDaysBetween, isToday, isHoliday, DAY_LABELS, barColumnRange, getWeekRangeLabel } from '@/lib/date-utils';
 import { useTimelineStore } from '@/store/timeline-store';
 import { StatusPicker } from './status-picker';
 import { PriorityPicker } from './priority-picker';
 import { TaskColorPicker } from './task-color-picker';
 import { GanttBar } from './gantt-bar';
+import { requestDateChange } from './request-date-change';
+import { DependencyLines } from './dependency-lines';
+import { TaskLinksPanel } from './task-links-panel';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DeferredInput } from '@/components/deferred-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { selectExistingIds, useTaskSelectionStore } from '@/store/selection-store';
 import type { Project, Task } from '@/lib/types';
 
 const dndAccessibility = typeof document === 'undefined'
@@ -37,6 +42,10 @@ type SortableItemType = 'project' | 'task';
 const disableRowLayoutAnimation: AnimateLayoutChanges = () => false;
 
 // ─── Project Row ────────────────────────────────────────────────────────────
+
+// Opaque version of the project row's `bg-muted/30` so frozen (sticky) cells hide
+// the columns scrolling underneath instead of letting them show through.
+const PROJECT_ROW_STICKY_BG = 'bg-[color-mix(in_oklab,var(--color-muted)_30%,var(--color-background))]';
 
 interface ProjectRowProps {
   project: Project;
@@ -72,7 +81,7 @@ const ProjectTimelineCells = React.memo(function ProjectTimelineCells({
             key={c.dateStr}
             className={[
               'relative h-9 border-b border-r border-border',
-              isWkStart ? 'border-l-2' : '',
+              isWkStart ? 'border-l' : '',
               isHol ? 'bg-yellow-50 dark:bg-yellow-950/20' : '',
               isTod ? 'bg-red-50/30 dark:bg-red-950/10' : '',
             ].join(' ')}
@@ -98,6 +107,7 @@ const ProjectTimelineCells = React.memo(function ProjectTimelineCells({
 });
 
 interface TaskTimelineCellsProps {
+  taskId: string;
   cols: ReturnType<typeof generateColumns>;
   holidays: string[];
   label: string;
@@ -145,6 +155,7 @@ function DragPreview({ item }: { item: ActiveDragItem }) {
 }
 
 const TaskTimelineCells = React.memo(function TaskTimelineCells({
+  taskId,
   cols,
   holidays,
   label,
@@ -166,7 +177,7 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
             key={c.dateStr}
             className={[
               'relative h-9 border-b border-r border-border',
-              isWkStart ? 'border-l-2' : '',
+              isWkStart ? 'border-l' : '',
               isHol ? 'bg-yellow-50 dark:bg-yellow-950/20' : '',
               isTod ? 'bg-red-50/30 dark:bg-red-950/10' : '',
             ].join(' ')}
@@ -174,7 +185,7 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
             {isTod && (
               <div className="absolute inset-y-0 left-1/2 w-px bg-red-500/40 z-0" />
             )}
-            {k === startCol && (
+            {k === startCol && startCol !== -1 && (
               <GanttBar
                 startCol={0}
                 endCol={endCol - startCol}
@@ -183,6 +194,7 @@ const TaskTimelineCells = React.memo(function TaskTimelineCells({
                 taskColor={taskColor}
                 label={label}
                 percent={percent}
+                taskId={taskId}
                 onUpdate={onUpdate}
               />
             )}
@@ -222,6 +234,10 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
     [taskIdsKey],
   );
 
+  const selectedInProject = useTaskSelectionStore((s) => taskIds.filter((id) => s.selectedIds.has(id)).length);
+  const setManySelected = useTaskSelectionStore((s) => s.setMany);
+  const allSelected = taskIds.length > 0 && selectedInProject === taskIds.length;
+
   const pRange = useMemo(() => {
     const dates = project.tasks.flatMap((t) => [t.startDate, t.endDate]).filter(Boolean);
     if (!dates.length) return null;
@@ -229,8 +245,9 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
     return { start: sorted[0], end: sorted[sorted.length - 1] };
   }, [project.tasks]);
 
-  const pStartCol = pRange ? (colIndexFromDate(pRange.start, cols) ?? 0) : -1;
-  const pEndCol = pRange ? (colIndexFromDate(pRange.end, cols) ?? cols.length - 1) : -1;
+  const pCols = pRange ? barColumnRange(pRange.start, pRange.end, cols) : null;
+  const pStartCol = pCols?.startCol ?? -1;
+  const pEndCol = pCols?.endCol ?? -1;
   const pDays = pRange ? workingDaysBetween(pRange.start, pRange.end, holidays) : 0;
 
   const totalCols = 11 + cols.length;
@@ -242,7 +259,7 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
       className="group/project"
     >
       <tr className="bg-muted/30 font-semibold text-[12px]">
-        <td className={`${freeze ? 'sticky left-0 z-2' : ''} bg-inherit border-b border-r border-border`}>
+        <td className={`${freeze ? 'sticky left-0 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r border-border`}>
           <div className="flex items-center px-3 py-1">
             <StatusPicker
               value={project.status}
@@ -250,10 +267,18 @@ const SortableProjectRow = React.memo(function SortableProjectRow({ project, col
             />
           </div>
         </td>
-        <td className={`${freeze ? 'sticky left-27.5 z-2' : ''} bg-inherit border-b border-r border-border`} />
-        <td className={`${freeze ? 'sticky left-49 z-2' : ''} bg-inherit border-b border-r border-border`} />
-        <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-inherit border-b border-r-2 border-border min-w-65`}>
+        <td className={`${freeze ? 'sticky left-27.5 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r border-border`} />
+        <td className={`${freeze ? 'sticky left-49 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r border-border`} />
+        <td className={`${freeze ? 'sticky left-66 z-2' : ''} ${PROJECT_ROW_STICKY_BG} border-b border-r-2 border-border min-w-65`}>
           <div className="flex items-center px-2 py-1 gap-1">
+            <Checkbox
+              className="mr-1 after:-inset-x-1.5"
+              checked={allSelected}
+              indeterminate={selectedInProject > 0 && !allSelected}
+              disabled={taskIds.length === 0}
+              onCheckedChange={() => setManySelected(taskIds, !allSelected)}
+              aria-label={`Select all tasks in ${project.name}`}
+            />
             <button
               onClick={() => updateProject(project.id, { expanded: !project.expanded })}
               className="text-muted-foreground hover:text-foreground p-0.5 rounded"
@@ -372,19 +397,24 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
   const updateTask = useTimelineStore((s) => s.updateTask);
   const addTask = useTimelineStore((s) => s.addTask);
   const deleteTask = useTimelineStore((s) => s.deleteTask);
+  const isSelected = useTaskSelectionStore((s) => s.selectedIds.has(task.id));
+  const toggleSelected = useTaskSelectionStore((s) => s.toggle);
 
-  const startCol = colIndexFromDate(task.startDate, cols) ?? 0;
-  const endCol = colIndexFromDate(task.endDate, cols) ?? 0;
+  // -1 when no part of the task is on a visible column: no bar is drawn.
+  const barCols = barColumnRange(task.startDate, task.endDate, cols);
+  const startCol = barCols?.startCol ?? -1;
+  const endCol = barCols?.endCol ?? -1;
   const days = workingDaysBetween(task.startDate, task.endDate, holidays);
 
   const handleBarUpdate = useCallback((ns: number, ne: number) => {
     const absNs = Math.max(0, Math.min(startCol + ns, cols.length - 1));
     const absNe = Math.max(0, Math.min(startCol + ne, cols.length - 1));
-    updateTask(projectId, task.id, {
-      startDate: cols[absNs]?.dateStr ?? task.startDate,
-      endDate: cols[absNe]?.dateStr ?? task.endDate,
+    requestDateChange({
+      kind: 'task',
+      taskId: task.id,
+      patch: { startDate: cols[absNs]?.dateStr ?? task.startDate, endDate: cols[absNe]?.dateStr ?? task.endDate },
     });
-  }, [cols, endCol, projectId, startCol, task.endDate, task.id, task.startDate, updateTask]);
+  }, [cols, endCol, startCol, task.endDate, task.id, task.startDate]);
 
   function handleTaskNameKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
@@ -435,7 +465,13 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
       </td>
       <td className={`${freeze ? 'sticky left-66 z-2' : ''} bg-background border-b border-r-2 border-border`}>
         <div className="flex items-center pl-8 pr-2 relative">
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 w-2 h-px bg-border" />
+          <Checkbox
+            className="absolute left-2 top-1/2 -translate-y-1/2 after:-inset-x-1.5"
+            checked={isSelected}
+            onCheckedChange={() => toggleSelected(task.id)}
+            aria-label={`Select task ${task.name}`}
+          />
+          <span className="absolute left-6.5 top-1/2 -translate-y-1/2 w-1.5 h-px bg-border" />
           <DeferredInput
             className="w-full bg-transparent outline-none text-[12px] py-1 min-w-0 hover:bg-muted/30 focus:bg-background focus:ring-1 focus:ring-inset focus:ring-foreground/30 rounded px-1"
             value={task.name}
@@ -445,6 +481,7 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
             data-task-name-input="true"
             data-task-id={task.id}
           />
+          <TaskLinksPanel taskId={task.id} />
         </div>
       </td>
       <td className="border-b border-r border-border">
@@ -465,13 +502,13 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
       <td className="border-b border-r border-border p-0">
         <DatePicker
           value={task.startDate}
-          onChange={(d) => updateTask(projectId, task.id, { startDate: d })}
+          onChange={(d) => requestDateChange({ kind: 'task', taskId: task.id, patch: { startDate: d } })}
         />
       </td>
       <td className="border-b border-r border-border p-0">
         <DatePicker
           value={task.endDate}
-          onChange={(d) => updateTask(projectId, task.id, { endDate: d })}
+          onChange={(d) => requestDateChange({ kind: 'task', taskId: task.id, patch: { endDate: d } })}
         />
       </td>
       <td className="border-b border-r border-border text-center text-[11px] font-mono text-muted-foreground">
@@ -537,6 +574,7 @@ const SortableTaskRow = React.memo(function SortableTaskRow({ task, projectId, c
         </Popover>
       </td>
       <TaskTimelineCells
+        taskId={task.id}
         cols={cols}
         holidays={holidays}
         label={task.name}
@@ -571,6 +609,8 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
   );
 
   const projects = timeline?.projects;
+  // Leave room below the last row for the floating bulk action bar while it is shown.
+  const hasSelection = useTaskSelectionStore((s) => selectExistingIds(s.selectedIds, timeline).length > 0);
 
   // Compute a stable string key of owners so the array identity only changes
   // when the actual owner set changes (not on every keystroke).
@@ -730,13 +770,13 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const totalCols = 11 + cols.length;
 
-  const weekGroups: { weekIndex: number; span: number }[] = [];
+  const weekGroups: { weekIndex: number; span: number; monday: Date }[] = [];
   let wi = 0;
   while (wi < cols.length) {
     const w = cols[wi].weekIndex;
     let j = wi;
     while (j < cols.length && cols[j].weekIndex === w) j++;
-    weekGroups.push({ weekIndex: w, span: j - wi });
+    weekGroups.push({ weekIndex: w, span: j - wi, monday: cols[wi].date });
     wi = j;
   }
 
@@ -749,9 +789,13 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
       onDragEnd={handleDragEnd}
       accessibility={dndAccessibility}
     >
-      <div ref={tableRef} className="table-scroll flex-1 overflow-auto relative" data-table-wrap>
+      <div ref={tableRef} className={`table-scroll flex-1 overflow-auto relative ${hasSelection ? 'pb-20' : ''}`} data-table-wrap>
+        {/* Before the table so bars (later in the DOM, same z-index) paint above the lines. */}
+        <DependencyLines containerRef={tableRef} />
+        {/* border-separate, not border-collapse: collapsed borders are painted by the table,
+            so frozen (sticky) cells would let scrolled content show through their edges. */}
         <table
-          className="border-collapse text-[12px]"
+          className="border-separate border-spacing-0 text-[12px]"
           style={{ width: 'max-content', minWidth: '100%' }}
         >
           <thead className="sticky top-0 z-10">
@@ -781,10 +825,13 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
                 colSpan={w.span}
                 className={[
                   'bg-muted border-b border-r border-border text-center text-[10px] font-mono text-muted-foreground py-1.5',
-                  w.weekIndex > 0 ? 'border-l-2' : '',
+                  w.weekIndex > 0 ? 'border-l' : '',
                 ].join(' ')}
               >
-                Wk {w.weekIndex + 1}
+                <div className="leading-tight">Wk {w.weekIndex + 1}</div>
+                <div className="mt-0.5 text-[9px] leading-tight whitespace-nowrap text-muted-foreground/70">
+                  {getWeekRangeLabel(w.monday)}
+                </div>
               </th>
             ))}
           </tr>
@@ -799,7 +846,7 @@ export function TimelineTable({ freeze }: TimelineTableProps) {
                     'bg-muted border-b-2 border-r border-border text-center font-mono text-[10px] py-1',
                     'w-8 min-w-8',
                     isTod ? 'text-red-500 font-semibold bg-red-50 dark:bg-red-950/20' : 'text-muted-foreground',
-                    isWkStart ? 'border-l-2' : '',
+                    isWkStart ? 'border-l' : '',
                   ].join(' ')}
                 >
                   {c.date.getDate()}

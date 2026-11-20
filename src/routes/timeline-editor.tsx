@@ -6,6 +6,10 @@ import { useAutosave } from '@/hooks/use-autosave';
 import { EditorHeader } from '@/features/timeline/editor-header';
 import { Toolbar } from '@/features/timeline/toolbar';
 import { TimelineTable } from '@/features/timeline/timeline-table';
+import { BulkActionBar } from '@/features/timeline/bulk-action-bar';
+import { OverflowDialog } from '@/features/timeline/overflow-dialog';
+import { useDateChangePrompt } from '@/store/date-change-prompt';
+import { useTaskSelectionStore } from '@/store/selection-store';
 import { Button } from '@/components/ui/button';
 import { getTimelineAdapter, saveTimelineForSession } from '@/lib/timeline-adapters';
 
@@ -20,9 +24,22 @@ export default function TimelineEditor() {
 
   useAutosave();
 
+  // Task selection is per-timeline UI state: drop it when leaving or switching timelines.
+  useEffect(() => () => useTaskSelectionStore.getState().clear(), [id]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !isEscapeHandledElsewhere(e)) {
+        useTaskSelectionStore.getState().clear();
+      }
       const mod = e.metaKey || e.ctrlKey;
+      // While "Extend timeline?" is open its pending edit is based on the current timeline;
+      // undoing underneath it would let "Extend" apply that edit to a different state.
+      const promptOpen = useDateChangePrompt.getState().pending !== null;
+      if (mod && (e.key === 'z' || e.key === 'Z') && promptOpen) {
+        e.preventDefault();
+        return;
+      }
       if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         useTimelineStore.temporal.getState().undo();
@@ -86,6 +103,8 @@ export default function TimelineEditor() {
       <EditorHeader />
       <Toolbar freezeColumns={freezeColumns} onToggleFreeze={() => setFreezeColumns(f => !f)} />
       <TimelineTable freeze={freezeColumns} />
+      <BulkActionBar />
+      <OverflowDialog />
       <footer className="shrink-0 border-t border-border bg-background px-4 py-1.5 flex gap-4 text-[11px] text-muted-foreground font-mono" data-pdf-hide>
         <span>💡 Click cells to edit</span>
         <span>·</span>
@@ -99,4 +118,13 @@ export default function TimelineEditor() {
       </footer>
     </div>
   );
+}
+
+/** Esc belongs to an input being edited or an open popover before it clears the task selection. */
+function isEscapeHandledElsewhere(e: KeyboardEvent): boolean {
+  if (e.defaultPrevented) return true;
+  const active = document.activeElement;
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return true;
+  if (active instanceof HTMLElement && active.isContentEditable) return true;
+  return document.querySelector('[data-slot="popover-content"][data-open]') !== null;
 }

@@ -1,5 +1,9 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { LINK_REJECTION_MESSAGE } from '@/lib/dependencies';
 import { resolveTaskBarColor } from '@/lib/task-colors';
+import { useLinkDrag } from '@/store/link-drag';
+import { useTimelineStore } from '@/store/timeline-store';
 import type { Priority, TaskColor } from '@/lib/types';
 
 const CELL_WIDTH = 32;
@@ -13,6 +17,8 @@ interface GanttBarProps {
   label: string;
   percent?: number;
   isProject?: boolean;
+  /** Set on task bars so link lines and link-drag can find them. */
+  taskId?: string;
   onUpdate?: (newStart: number, newEnd: number) => void;
 }
 
@@ -25,6 +31,7 @@ export function GanttBar({
   label,
   percent = 0,
   isProject = false,
+  taskId,
   onUpdate,
 }: GanttBarProps) {
   const dragRef = useRef<{
@@ -37,6 +44,7 @@ export function GanttBar({
   } | null>(null);
 
   const barRef = useRef<HTMLDivElement>(null);
+  const dotRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(false);
 
   const span = endCol - startCol + 1;
@@ -48,7 +56,8 @@ export function GanttBar({
   useEffect(() => {
     if (!selected) return;
     const onOutside = (e: PointerEvent) => {
-      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (barRef.current && !barRef.current.contains(target) && !dotRef.current?.contains(target)) {
         setSelected(false);
       }
     };
@@ -95,28 +104,81 @@ export function GanttBar({
   );
 
   const commitDrag = useCallback(
-    (_clientX: number) => {
+    () => {
       if (!dragRef.current || !barRef.current || !onUpdate) return;
       const { origStart, origEnd, lastNs, lastNe } = dragRef.current;
       dragRef.current = null;
+      // Put the bar back where its props say. If the change applies, new props move it;
+      // if it waits for (or is cancelled in) the "Extend timeline?" dialog, it stays put.
+      barRef.current.style.left = `${startCol * CELL_WIDTH + 2}px`;
+      barRef.current.style.width = `${(endCol - startCol + 1) * CELL_WIDTH - 4}px`;
       if (lastNs !== origStart || lastNe !== origEnd) onUpdate(lastNs, lastNe);
     },
-    [onUpdate]
+    [onUpdate, startCol, endCol]
   );
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => commitDrag(e.clientX),
-    [commitDrag]
-  );
+  const handlePointerUp = useCallback(() => commitDrag(), [commitDrag]);
 
-  const handlePointerCancel = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => commitDrag(e.clientX),
-    [commitDrag]
-  );
+  const handlePointerCancel = useCallback(() => commitDrag(), [commitDrag]);
+
+  // Drag from the dot onto another bar to make that task follow this one.
+  const onDotDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!taskId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dotRef.current?.setPointerCapture(e.pointerId);
+    useLinkDrag.getState().set({ fromTaskId: taskId, x: e.clientX, y: e.clientY });
+  };
+  const onDotMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = useLinkDrag.getState().drag;
+    if (drag) useLinkDrag.getState().set({ ...drag, x: e.clientX, y: e.clientY });
+  };
+  const onDotUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = useLinkDrag.getState().drag;
+    useLinkDrag.getState().set(null);
+    if (!drag) return;
+    const targetId = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest<HTMLElement>('[data-bar-task-id]')?.dataset.barTaskId;
+    if (!targetId || targetId === drag.fromTaskId) return;
+    const result = useTimelineStore.getState().addDependency(targetId, drag.fromTaskId);
+    if (!result.ok) toast.error(LINK_REJECTION_MESSAGE[result.reason]);
+  };
+
+  const showDot = selected && !isProject && !!taskId;
 
   return (
+    <>
+    {showDot && (
+      <div
+        ref={dotRef}
+        role="button"
+        aria-label="Drag to link a task that follows this one"
+        title="Drag onto another bar to link"
+        data-link-dot
+        onPointerDown={onDotDown}
+        onPointerMove={onDotMove}
+        onPointerUp={onDotUp}
+        onPointerCancel={() => useLinkDrag.getState().set(null)}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: `${(startCol + span) * CELL_WIDTH - 1}px`,
+          width: 10,
+          height: 10,
+          transform: 'translateY(-50%)',
+          borderRadius: 9999,
+          background: 'var(--color-background)',
+          border: '2px solid var(--color-foreground)',
+          cursor: 'crosshair',
+          zIndex: 1, // below frozen columns (z-2); later in the DOM than the line layer, so above it
+          touchAction: 'none',
+        }}
+      />
+    )}
     <div
       ref={barRef}
+      data-bar-task-id={taskId}
       onClick={() => { if (!isProject && onUpdate) setSelected(true); }}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -208,5 +270,6 @@ export function GanttBar({
         </span>
       )}
     </div>
+    </>
   );
 }

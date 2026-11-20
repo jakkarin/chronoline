@@ -366,7 +366,11 @@ export function PresentOverlay({ html, title, onClose }: PresentOverlayProps) {
   }, [html]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault(); // this Esc belongs to the overlay; don't let the editor also clear its task selection
+      onClose();
+    };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => {

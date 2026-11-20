@@ -1,0 +1,4 @@
+# pnpm 11 fails the install when a dependency's build script hasn't been approved.
+# core-js's postinstall only prints a banner, so it's skipped.
+allowBuilds:
+  core-js: false

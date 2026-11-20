@@ -1,5 +1,5 @@
 import type { Timeline } from '@/lib/types';
-import { generateColumns, workingDaysBetween, DAY_LABELS } from '@/lib/date-utils';
+import { generateColumns, workingDaysBetween, DAY_LABELS, getWeekRangeLabel, barColumnRange } from '@/lib/date-utils';
 import { PRIORITY_BAR_COLOR, resolveTaskBarColor } from '@/lib/task-colors';
 import { format, parseISO } from 'date-fns';
 import geistFontCss from '@fontsource-variable/geist/index.css?inline';
@@ -378,8 +378,9 @@ function ganttCells(
   label = '',
   dayColumnWidth = CELL_W
 ): string {
-  const startIdx = cols.findIndex(c => c.dateStr === startDate);
-  const endIdx   = cols.findIndex(c => c.dateStr === endDate);
+  const barCols  = barColumnRange(startDate, endDate, cols);
+  const startIdx = barCols?.startCol ?? -1;
+  const endIdx   = barCols?.endCol ?? -1;
   const trimmedLabel = label.trim();
   const barSpan = startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx
     ? endIdx - startIdx + 1
@@ -432,11 +433,9 @@ export function generatePresentHTML(title: string, timeline: Timeline): string {
   for (const col of cols) {
     if (col.weekIndex !== curW) {
       curW = col.weekIndex;
-      const mon = col.date;
-      const fri = new Date(mon); fri.setDate(fri.getDate() + 4);
       weekGroups.push({
         label: `Wk${col.weekIndex + 1}`,
-        rangeLabel: `${format(mon, 'd MMM')} - ${format(fri, 'd MMM yyyy')}`,
+        rangeLabel: getWeekRangeLabel(col.date),
       });
     }
   }

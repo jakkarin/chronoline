@@ -6,6 +6,13 @@ export type PresetTaskColor = 'ROSE' | 'AMBER' | 'EMERALD' | 'SKY' | 'VIOLET' | 
 
 export type TaskColor = PresetTaskColor | `#${string}`;
 
+/** A link from a task to one it follows (its parent). */
+export interface TaskDependency {
+  taskId: string;
+  /** Move with the parent when the parent's end date changes. */
+  follow: boolean;
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -17,6 +24,8 @@ export interface Task {
   endDate: string;
   deliverable: string;
   percentComplete: number;
+  /** Tasks this one follows. Optional so older data stays valid. */
+  dependsOn?: TaskDependency[];
 }
 
 export interface Project {

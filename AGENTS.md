@@ -64,7 +64,7 @@ Defined in `src/lib/types.ts`:
 
 | Type | Key fields |
 |---|---|
-| `Task` | `id`, `name`, `status`, `priority`, `color`, `owner`, `startDate`, `endDate`, `deliverable`, `percentComplete` |
+| `Task` | `id`, `name`, `status`, `priority`, `color`, `owner`, `startDate`, `endDate`, `deliverable`, `percentComplete`, `dependsOn?` (`{ taskId, follow }[]` — tasks this one follows) |
 | `Project` | `id`, `name`, `status`, `deliverable`, `tasks[]`, `expanded` |
 | `TimelineMeta` | `id`, `title`, `customer`, `startDate`, `weeks`, `note`, `createdAt`, `updatedAt`, `projectCount`, `taskCount` |
 | `TimelineData` | `id`, `projects[]`, `holidays[]` |
@@ -85,6 +85,8 @@ Direct edit mode loads the same `Timeline` / `TimelineVersion` shapes from a JSO
 - Only `timeline` is tracked via `partialize`; `saveStatus` and `editorSession` are intentionally excluded.
 - `editorSession.mode` is either `indexeddb` or `file`.
 - Key actions include `setTimeline`, `setMeta`, project/task CRUD, cross-project moves, `toggleHoliday`, `saveVersion`, `renameVersion`, `deleteVersion`, and `restoreVersion`.
+- **Task dates change through `commitDateChange(edit, choice?)`** (UI calls `requestDateChange` in `src/features/timeline/request-date-change.ts`). It applies the edit plus the follow cascade (`src/lib/dependencies.ts`) in one undo step; if tasks would end past the last visible week it returns overflow info instead, and the "Extend timeline?" dialog re-calls it with `extend` or `stopAtEdge`. `updateTask`/`setTasksStartDate` share the same cascade.
+- Task links live on the follower (`task.dependsOn`); deleting a task or project removes references to it in the same step.
 - Restoring a version clears temporal undo history. In IndexedDB mode it reloads from Dexie; in file mode it restores from in-memory versions kept on the active editor session.
 
 **Do not** store `saveStatus`, file handles, or transient UI state in the undo stack.
@@ -118,6 +120,9 @@ npx tsc --noEmit
 
 # Lint
 npm run lint
+
+# Unit tests (Vitest)
+npm test
 
 # Build
 npm run build

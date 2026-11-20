@@ -10,9 +10,11 @@ interface DatePickerProps {
   onChange: (date: string) => void;
   className?: string;
   placeholder?: string;
+  /** YYYY-MM-DD whose month the calendar opens on when `value` is empty. */
+  defaultMonth?: string;
 }
 
-export function DatePicker({ value, onChange, className, placeholder = 'Pick a date' }: DatePickerProps) {
+export function DatePicker({ value, onChange, className, placeholder = 'Pick a date', defaultMonth }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const selected = value ? parseISO(value) : undefined;
 
@@ -39,7 +41,7 @@ export function DatePicker({ value, onChange, className, placeholder = 'Pick a d
               setOpen(false);
             }
           }}
-          defaultMonth={selected}
+          defaultMonth={selected ?? (defaultMonth ? parseISO(defaultMonth) : undefined)}
           initialFocus
         />
       </PopoverContent>

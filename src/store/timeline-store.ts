@@ -4,6 +4,8 @@ import { produce } from 'immer';
 import { getTimelineAdapter } from '@/lib/timeline-adapters';
 import type { Timeline, TimelineMeta, Project, Task } from '@/lib/types';
 import { newId } from '@/lib/id';
+import { canLink, removeReferences, type LinkRejection } from '@/lib/dependencies';
+import { applyDateEdit, overflowInfo, resolveOverflow, type DateEdit, type OverflowChoice, type OverflowInfo } from '@/store/date-change';
 import type { EditorSession } from '@/lib/timeline-file';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -20,8 +22,22 @@ interface TimelineStore {
   updateProject: (id: string, patch: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   addTask: (projectId: string, afterTaskId?: string) => string | undefined;
+  /**
+   * Edit task fields. Date fields still run the follow cascade but never ask about extending
+   * the timeline — UI code changing dates should call `requestDateChange` instead.
+   */
   updateTask: (projectId: string, taskId: string, patch: Partial<Task>) => void;
   deleteTask: (projectId: string, taskId: string) => void;
+  setTasksStartDate: (taskIds: string[], date: string) => void;
+  /**
+   * The way to change task dates: applies the edit plus its follow cascade in one undo step.
+   * If the result runs past the last visible week and no `choice` is given, nothing changes
+   * and the overflow details are returned so the UI can ask the user.
+   */
+  commitDateChange: (edit: DateEdit, choice?: OverflowChoice) => OverflowInfo | null;
+  addDependency: (childId: string, parentId: string) => { ok: true } | { ok: false; reason: LinkRejection };
+  setDependencyFollow: (childId: string, parentId: string, follow: boolean) => void;
+  removeDependency: (childId: string, parentId: string) => void;
   moveProject: (fromIdx: number, toIdx: number) => void;
   moveTask: (fromProjectId: string, fromIdx: number, toProjectId: string, toIdx: number) => void;
   toggleHoliday: (date: string) => void;
@@ -34,7 +50,7 @@ interface TimelineStore {
 
 export const useTimelineStore = create<TimelineStore>()(
   temporal(
-    (set) => ({
+    (set, get) => ({
       timeline: null,
       editorSession: null,
       saveStatus: 'idle',
@@ -78,7 +94,9 @@ export const useTimelineStore = create<TimelineStore>()(
         set(
           produce((state: TimelineStore) => {
             if (!state.timeline) return;
+            const removed = state.timeline.projects.find((p) => p.id === id);
             state.timeline.projects = state.timeline.projects.filter((p) => p.id !== id);
+            if (removed) removeReferences(state.timeline.projects, new Set(removed.tasks.map((t) => t.id)));
           })
         ),
 
@@ -117,20 +135,83 @@ export const useTimelineStore = create<TimelineStore>()(
         return newTaskId;
       },
 
-      updateTask: (projectId, taskId, patch) =>
-        set(
-          produce((state: TimelineStore) => {
-            const p = state.timeline?.projects.find((x) => x.id === projectId);
-            const t = p?.tasks.find((x) => x.id === taskId);
-            if (t) Object.assign(t, patch);
-          })
-        ),
+      updateTask: (projectId, taskId, patch) => {
+        const { startDate, endDate, ...rest } = patch;
+        const dates = {
+          ...(startDate !== undefined ? { startDate } : {}),
+          ...(endDate !== undefined ? { endDate } : {}),
+        };
+        set((state) => {
+          if (!state.timeline) return {};
+          let timeline = produce(state.timeline, (draft) => {
+            const t = draft.projects.find((x) => x.id === projectId)?.tasks.find((x) => x.id === taskId);
+            if (t) Object.assign(t, rest);
+          });
+          // Date fields go through the shared path so followers move too.
+          if (Object.keys(dates).length > 0) timeline = applyDateEdit(timeline, { kind: 'task', taskId, patch: dates });
+          return { timeline };
+        });
+      },
 
       deleteTask: (projectId, taskId) =>
         set(
           produce((state: TimelineStore) => {
             const p = state.timeline?.projects.find((x) => x.id === projectId);
-            if (p) p.tasks = p.tasks.filter((t) => t.id !== taskId);
+            if (!p || !state.timeline) return;
+            p.tasks = p.tasks.filter((t) => t.id !== taskId);
+            removeReferences(state.timeline.projects, new Set([taskId]));
+          })
+        ),
+
+      // One set() call so the whole bulk edit is a single undo step.
+      setTasksStartDate: (taskIds, date) =>
+        set((state) =>
+          state.timeline && taskIds.length > 0
+            ? { timeline: applyDateEdit(state.timeline, { kind: 'bulkStart', taskIds, date }) }
+            : {}
+        ),
+
+      commitDateChange: (edit, choice) => {
+        const before = get().timeline;
+        if (!before) return null;
+        const next = applyDateEdit(before, edit);
+        const info = overflowInfo(before, next);
+        if (info && !choice) return info;
+        set({ timeline: info && choice ? resolveOverflow(before, next, choice) : next });
+        return null;
+      },
+
+      addDependency: (childId, parentId) => {
+        const timeline = get().timeline;
+        if (!timeline) return { ok: false, reason: 'missing' };
+        const check = canLink(timeline.projects, childId, parentId);
+        if (!check.ok) return check;
+        set(
+          produce((state: TimelineStore) => {
+            const t = state.timeline?.projects.flatMap((p) => p.tasks).find((x) => x.id === childId);
+            if (t) t.dependsOn = [...(t.dependsOn ?? []), { taskId: parentId, follow: true }];
+          })
+        );
+        return { ok: true };
+      },
+
+      setDependencyFollow: (childId, parentId, follow) =>
+        set(
+          produce((state: TimelineStore) => {
+            const t = state.timeline?.projects.flatMap((p) => p.tasks).find((x) => x.id === childId);
+            const dep = t?.dependsOn?.find((d) => d.taskId === parentId);
+            if (dep) dep.follow = follow;
+          })
+        ),
+
+      removeDependency: (childId, parentId) =>
+        set(
+          produce((state: TimelineStore) => {
+            const t = state.timeline?.projects.flatMap((p) => p.tasks).find((x) => x.id === childId);
+            if (!t?.dependsOn) return;
+            const kept = t.dependsOn.filter((d) => d.taskId !== parentId);
+            if (kept.length > 0) t.dependsOn = kept;
+            else delete t.dependsOn;
           })
         ),
 

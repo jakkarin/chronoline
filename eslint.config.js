@@ -18,11 +18,19 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
-  },
-  {
+    // Overrides live in the same block as the plugins they configure: a block
+    // without `files` also matches .js files, where these plugins are not loaded.
     rules: {
       'react-hooks/exhaustive-deps': 'off',
       'react-refresh/only-export-components': 'warn',
+    },
+  },
+  {
+    // shadcn components are CLI-generated and export their cva variants (buttonVariants, …)
+    // next to the component by design; don't hand-edit them to satisfy this rule.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ]);

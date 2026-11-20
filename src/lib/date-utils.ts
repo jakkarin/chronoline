@@ -6,6 +6,7 @@ import {
   isWeekend,
   isToday as dfnsIsToday,
   isSameDay,
+  nextMonday,
 } from 'date-fns';
 
 export interface DateColumn {
@@ -59,13 +60,42 @@ export function isHoliday(dateStr: string, holidays: string[]): boolean {
   return holidays.includes(dateStr);
 }
 
-export function colIndexFromDate(dateStr: string, cols: DateColumn[]): number | null {
-  const idx = cols.findIndex((c) => c.dateStr === dateStr);
-  return idx === -1 ? null : idx;
+/**
+ * Grid columns a bar should cover. The grid only has Mon–Fri columns for a fixed
+ * range, so a weekend or out-of-range date clamps to the nearest visible weekday
+ * inside the bar. Returns null when no part of the bar falls on a visible column.
+ */
+export function barColumnRange(
+  startDate: string,
+  endDate: string,
+  cols: DateColumn[]
+): { startCol: number; endCol: number } | null {
+  if (!startDate || !endDate) return null;
+  const startCol = cols.findIndex((c) => c.dateStr >= startDate);
+  const endCol = cols.findLastIndex((c) => c.dateStr <= endDate);
+  if (startCol === -1 || endCol === -1 || startCol > endCol) return null;
+  return { startCol, endCol };
 }
 
 export function isSameDayStr(a: string, b: Date): boolean {
   return isSameDay(parseISO(a), b);
+}
+
+/** "30 Nov - 4 Dec 2026" for the Mon–Fri week starting on `monday`. */
+export function getWeekRangeLabel(monday: Date): string {
+  return `${format(monday, 'd MMM')} - ${format(addDays(monday, 4), 'd MMM yyyy')}`;
+}
+
+/** Saturday/Sunday → the following Monday; weekdays are returned unchanged. */
+export function snapToWeekday(dateStr: string): string {
+  const date = parseISO(dateStr);
+  return isWeekend(date) ? format(nextMonday(date), 'yyyy-MM-dd') : dateStr;
+}
+
+/** The next Mon–Fri day after `dateStr` (Fri/Sat/Sun → Monday). Holidays are not skipped. */
+export function nextWeekday(dateStr: string): string {
+  const next = addDays(parseISO(dateStr), 1);
+  return format(isWeekend(next) ? nextMonday(next) : next, 'yyyy-MM-dd');
 }
 
 export const DAY_LABELS = ['M', 'T', 'W', 'T', 'F'];
